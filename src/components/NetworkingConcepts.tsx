@@ -4,14 +4,14 @@ import React from 'react';
 import { ArrowUpRight, BookOpen, CheckCircle2, CircleDot, ExternalLink, ShieldAlert, Wifi } from 'lucide-react';
 
 const lessons = [
-  { number: '01', title: 'Sockets identify the flow', text: 'A TCP connection is identified by the endpoint pair: source IP/port and destination IP/port. The client’s ephemeral port makes concurrent flows distinct.', icon: CircleDot },
-  { number: '02', title: 'SYN reserves attention', text: 'The initial SYN moves an endpoint from CLOSED toward SYN-SENT. A listener may hold incomplete state in SYN-RECEIVED while it waits for the final ACK.', icon: Wifi },
-  { number: '03', title: 'The VIP chooses a target', text: 'A Layer 4 load balancer uses transport metadata to select a backend for the life of a TCP connection. It is not choosing each packet independently.', icon: ArrowUpRight },
-  { number: '04', title: 'SYN-ACK and ACK establish', text: 'The three-way handshake synchronizes sequence numbers. Once the final ACK arrives, the connection is ESTABLISHED and can carry an ordered byte stream.', icon: CheckCircle2 },
-  { number: '05', title: 'Backlog is not active load', text: 'Half-open SYN state, established sockets waiting for accept, and active application connections are different queues. This lab keeps them visually separate.', icon: BookOpen },
-  { number: '06', title: 'Failover protects new flows', text: 'A target taken out of service stops receiving new handshakes. Existing connections can drain, reset, or time out depending on the real product policy.', icon: ShieldAlert },
-  { number: '07', title: 'FIN is not RST', text: 'FIN starts a graceful close. RST aborts a connection. TIME-WAIT prevents delayed segments from colliding with a new incarnation of the same socket pair.', icon: CircleDot },
-  { number: '08', title: 'Health checks are separate', text: 'A TCP health check proves that a port accepts a connection; it does not prove that the application behind that port is healthy.', icon: CheckCircle2 },
+  { number: '01', title: 'A connection has two addresses', text: 'A TCP connection uses a client address and port plus a server address and port. The temporary client port lets several connections exist at the same time.', icon: CircleDot },
+  { number: '02', title: 'SYN starts the connection', text: 'The client sends SYN to ask to connect. The server replies with SYN-ACK, and the client confirms with ACK.', icon: Wifi },
+  { number: '03', title: 'The load balancer chooses once', text: 'The load balancer chooses one available server when the connection starts. It does not move later messages from that connection to random servers.', icon: ArrowUpRight },
+  { number: '04', title: 'Connected means data can flow', text: 'After the final ACK, the connection is established and can carry an ordered stream of data.', icon: CheckCircle2 },
+  { number: '05', title: 'A server can drain', text: 'A draining server receives no new connections, but connections that already exist can finish.', icon: BookOpen },
+  { number: '06', title: 'New connections can fail over', text: 'If a server is removed, new connections avoid it and use another online server.', icon: ShieldAlert },
+  { number: '07', title: 'FIN closes normally', text: 'FIN starts a normal close. TIME-WAIT is a short safety wait before the connection disappears completely.', icon: CircleDot },
+  { number: '08', title: 'This is a classroom model', text: 'The app uses simulated timing and status values. It sends no real packets and is not a production load balancer.', icon: CheckCircle2 },
 ];
 
 const references = [
@@ -26,11 +26,11 @@ export const NetworkingConcepts: React.FC = () => (
   <section id="tcp-notes" className="space-y-5" aria-labelledby="notes-title">
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
       <div>
-        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><BookOpen className="h-3.5 w-3.5" /> Field notes / sources</div>
-        <h2 id="notes-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">What the animation is trying to teach.</h2>
-        <p className="mt-1 max-w-2xl text-xs leading-5 text-[#8099a4]">The lab is intentionally simplified, but the vocabulary and boundaries are anchored in standards and implementation documentation.</p>
+        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><BookOpen className="h-3.5 w-3.5" /> Key ideas and sources</div>
+        <h2 id="notes-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">What to remember.</h2>
+        <p className="mt-1 max-w-2xl text-xs leading-5 text-[#8099a4]">Run one connection first. Then use these cards for the explanation and the links for deeper study.</p>
       </div>
-      <a href="https://www.rfc-editor.org/rfc/rfc9293.html" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 self-start border border-[#b1ddea]/15 bg-[#0a151e] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#8ee8ff] transition hover:border-[#8ee8ff]/45 sm:self-auto">open TCP standard <ExternalLink className="h-3 w-3" /></a>
+      <a href="https://www.rfc-editor.org/rfc/rfc9293.html" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 self-start border border-[#b1ddea]/15 bg-[#0a151e] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#8ee8ff] transition hover:border-[#8ee8ff]/45 sm:self-auto">open TCP reference <ExternalLink className="h-3 w-3" /></a>
     </div>
 
     <div className="grid gap-px border border-[#b1ddea]/12 bg-[#b1ddea]/12 md:grid-cols-2 xl:grid-cols-4">
@@ -47,7 +47,7 @@ export const NetworkingConcepts: React.FC = () => (
     </div>
 
     <div className="lab-panel p-5">
-      <div className="flex items-center gap-2 border-b border-[#b1ddea]/15 pb-3 text-[10px] font-mono uppercase tracking-[0.18em] text-[#8ee8ff]"><ExternalLink className="h-3.5 w-3.5" /> Reading list used for this simulator</div>
+      <div className="flex items-center gap-2 border-b border-[#b1ddea]/15 pb-3 text-[10px] font-mono uppercase tracking-[0.18em] text-[#8ee8ff]"><ExternalLink className="h-3.5 w-3.5" /> For teachers and deeper study</div>
       <div className="mt-2 divide-y divide-[#b1ddea]/10">
         {references.map(([source, title, url]) => (
           <a key={url} href={url} target="_blank" rel="noreferrer" className="group flex flex-col gap-1 py-3 transition sm:flex-row sm:items-center sm:gap-4">
@@ -57,7 +57,7 @@ export const NetworkingConcepts: React.FC = () => (
           </a>
         ))}
       </div>
-      <p className="mt-4 border-l-2 border-[#f5c76f]/55 bg-[#211a10] px-3 py-2 text-[10px] leading-5 text-[#bda16a]">Research boundary: this browser app models a TCP proxy story; it does not bind sockets, implement a kernel TCP state machine, or claim to reproduce any vendor’s production failover semantics.</p>
+      <p className="mt-4 border-l-2 border-[#f5c76f]/55 bg-[#211a10] px-3 py-2 text-[10px] leading-5 text-[#bda16a]">Important limitation: this browser app models a TCP proxy story. It does not open real sockets, send real packets, or reproduce one vendor’s exact failover behavior.</p>
     </div>
   </section>
 );

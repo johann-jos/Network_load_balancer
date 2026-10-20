@@ -2,20 +2,87 @@
 
 > A visual, story-driven TCP load-balancing simulator for Computer Networks study.
 
-TCP/04 turns one connection into a live narrative: a client opens a socket, the virtual IP chooses an eligible backend, the handshake completes, the stream becomes established, and the connection closes through FIN and TIME-WAIT. The surrounding telemetry shows what the routing decision changed in the cluster.
+TCP/04 turns one connection into a live lesson: a client asks to connect, the virtual IP chooses an online server, the handshake completes, the connection carries data, and it closes through FIN and TIME-WAIT. The surrounding results show what the selection decision changed in the server pool.
 
 This is an educational browser simulation. It is deliberately not a production load balancer and it does not send packets onto the network.
 
+## In one sentence
+
+The client connects to one shared address, the load balancer chooses one online server, and that TCP connection stays with the chosen server until it closes.
+
+## The simple mental model
+
+Think of the load balancer as the **front desk** of a small server room:
+
+```text
+Client
+  │  “I want to connect.”
+  ▼
+Load balancer / shared address (VIP)
+  │  “Server 2 is available; use that one.”
+  ▼
+One backend server
+```
+
+The connection then follows this simple life cycle:
+
+```text
+SYN → SYN-ACK → ACK → CONNECTED → FIN → TIME-WAIT → CLOSED
+```
+
+### What to say in class
+
+1. The client sends a TCP connection request to the load balancer’s shared address.
+2. The load balancer checks the online servers and chooses one using a selection rule.
+3. TCP completes its three-way handshake: SYN, SYN-ACK, and ACK.
+4. The connection is now established and stays with the chosen server.
+5. If a server is removed, new connections avoid it while existing connections finish.
+6. FIN starts a normal close, and TIME-WAIT is a short safety period before the connection disappears.
+
+That is the whole project in six sentences.
+
+## 30-second viva answer
+
+> This project is a browser-based simulation of a TCP load balancer. A client connects to a virtual IP instead of choosing a backend server directly. When a new TCP connection arrives, the load balancer chooses one online server using Round Robin, Least Connections, or Weighted Round Robin. The connection is opened with SYN, SYN-ACK, and ACK, remains associated with that server while data is transferred, and closes with FIN and TIME-WAIT. If a server is taken offline, new connections are sent to other online servers while existing connections are allowed to finish. The project uses simulated values and does not send real network packets.
+
+## Easiest classroom demonstration
+
+1. Click **Start walkthrough**.
+2. Use **Next step** until the client sends one connection request.
+3. Point to the highlighted path: **Client → Load balancer → Server**.
+4. Explain the timeline: **SYN → SYN-ACK → ACK → Connected**.
+5. Create a second connection and explain that each new connection gets its own server-selection decision.
+6. Remove Server 2 from new connections. Explain that current connections can finish, but new connections avoid Server 2.
+7. Create one more connection to show failover.
+8. Bring Server 2 online again and point out FIN, TIME-WAIT, and CLOSED.
+
+For the first explanation, use **Take turns (Round Robin)**. Explain the other two rules only after the teacher understands the basic connection story.
+
+## Key terms in plain English
+
+| Term | Plain meaning |
+| --- | --- |
+| Shared address / VIP | The address clients use to reach the load balancer. |
+| Backend / server | A server that can receive a connection. |
+| SYN | The client’s request to start a TCP connection. |
+| SYN-ACK | The server’s reply to that request. |
+| ACK | The client’s confirmation. |
+| FIN | A normal request to close the connection. |
+| RST | An immediate refusal or abort. |
+| Draining | No new connections are sent to the server, but current ones can finish. |
+| TIME-WAIT | A short safety wait after closing. |
+| Simulated delay | A teaching value, not a measurement from a real server. |
+
 ## Why this project exists
 
-The original idea — “show Round Robin, Least Connections, and Weighted Round Robin” — is useful but generic. The redesigned project makes the **TCP connection life cycle** the main character:
+The original idea — “show Round Robin, Least Connections, and Weighted Round Robin” — is useful but generic. The project now makes the **TCP connection life cycle** the main lesson:
 
 ```text
 client socket
     │
     ├── SYN ───────────────► virtual IP :443
     │                         │
-    │                         ├── route one new flow
+    │                         ├── choose one server for this connection
     │                         │
     │                         └──► selected target :8080
     │                              SYN-ACK → ACK
@@ -24,12 +91,12 @@ client socket
                               FIN → TIME-WAIT → CLOSED
 ```
 
-The interface is organized like a **connection flight recorder** rather than a collection of disconnected cards. The user can watch the same flow in four places at once:
+The interface is organized as a guided classroom story. The user can watch the same connection in four places at once:
 
 1. the topology stage,
 2. the TCP phase timeline,
 3. the connection inspector,
-4. the event and flow recorder.
+4. the connection log.
 
 ## What the simulator demonstrates
 
@@ -50,13 +117,13 @@ The load balancer selects a backend for a **new TCP connection/flow**. It does n
 
 | Policy | What it demonstrates |
 | --- | --- |
-| **Round Robin** | Select the next eligible target in sequence. |
-| **Least Connections** | Select the eligible target with the fewest active TCP sockets. |
+| **Round Robin** | Take turns: choose the next available server. |
+| **Least Connections** | Choose the available server with the fewest active connections. |
 | **Weighted Round Robin** | Use smooth weighted selection to express relative capacity, initially `5:3:2`. |
 
 ### Failover and draining
 
-Taking a target offline removes it from new-flow selection. If it already has open sockets, it enters **DRAINING** first so the existing flows can finish. Recovery returns the listener to the eligible pool. This makes the difference between “stop accepting new connections” and “destroy every current connection” visible.
+Taking a server offline removes it from new-connection selection. If it already has open connections, it enters **DRAINING** first so those connections can finish. Recovery makes the server available again. This makes the difference between “stop accepting new connections” and “destroy every current connection” visible.
 
 ### Operational telemetry
 
@@ -71,18 +138,18 @@ Taking a target offline removes it from new-flow selection. If it already has op
 
 ### Guided presentation mode
 
-The **Play story** control walks through eight chapters:
+The **Start walkthrough** control walks through eight teacher-friendly steps:
 
-1. Open the first TCP flow with Round Robin.
-2. Switch to Least Connections while sockets are active.
-3. Drain `ORBIT / 02`.
-4. Fail over new SYNs to the remaining eligible targets.
-5. Recover the listener.
-6. Switch to Weighted Round Robin.
-7. Stress the visual handshake queue.
-8. Pause on the completed story for inspection.
+1. Meet the client, shared address, and three servers.
+2. Create one TCP connection request.
+3. Show the server-selection decision.
+4. Complete the three-way handshake.
+5. Create a second connection and compare its new decision.
+6. Remove Server 2 from new connections.
+7. Create a new connection and show failover.
+8. Recover Server 2 and finish with normal TCP closing.
 
-The story uses the same actions as the manual controls; it is not a separate fake animation.
+The walkthrough uses the same actions as the manual controls; it is not a separate fake animation. It starts paused so a student can explain one step at a time.
 
 ## Research-grounded design decisions
 
@@ -138,17 +205,18 @@ src/
 │   ├── layout.tsx               # metadata, fonts, global simulation provider
 │   └── page.tsx                 # story-first page composition
 ├── components/
-│   ├── StoryIntro.tsx           # narrative rail and current chapter
-│   ├── NetworkTopology.tsx      # animated SVG TCP topology
-│   ├── ConnectionInspector.tsx  # selected flow, socket header, route rationale
-│   ├── TcpTimeline.tsx           # SYN → ESTABLISHED → FIN → TIME-WAIT rail
-│   ├── SimulationControls.tsx   # policy, flow bursts, sustained traffic, story controls
-│   ├── ServerCard.tsx            # listener health, capacity, sockets, weights
-│   ├── MetricsDashboard.tsx     # charts for sockets, queues, CPU, outcomes
-│   ├── EventLogPanel.tsx         # accessible TCP flight recorder
-│   ├── AlgorithmExplanation.tsx # live candidate and score explanation
-│   ├── AlgorithmComparison.tsx  # repeatable 100-flow policy experiment
-│   ├── NetworkingConcepts.tsx   # researched teaching notes and source links
+│   ├── StoryIntro.tsx            # simple story and current step
+│   ├── TeachingCue.tsx           # plain-English explanation and “Say this” line
+│   ├── NetworkTopology.tsx       # animated client → VIP → server diagram
+│   ├── ConnectionInspector.tsx   # connection details and selection reason
+│   ├── TcpTimeline.tsx            # SYN → Connected → FIN → TIME-WAIT rail
+│   ├── SimulationControls.tsx    # selection rules and connection buttons
+│   ├── ServerCard.tsx             # server status, capacity, and failover control
+│   ├── MetricsDashboard.tsx      # results for connections, queues, CPU, outcomes
+│   ├── EventLogPanel.tsx          # readable TCP connection log
+│   ├── AlgorithmExplanation.tsx  # live server-selection explanation
+│   ├── AlgorithmComparison.tsx   # repeatable 100-connection comparison
+│   ├── NetworkingConcepts.tsx    # researched teaching notes and source links
 │   ├── Header.tsx
 │   └── DemoBanner.tsx
 ├── context/
@@ -182,7 +250,7 @@ simulationEngine
   └── benchmark workload
 ```
 
-The context uses a generation token and tracked timers so reset/unmount does not allow stale connection callbacks to repopulate a new run. Metrics are sampled on a stable one-second interval instead of restarting every time the active-flow count changes.
+The context uses a generation token and tracked timers so reset/unmount does not allow stale connection callbacks to repopulate a new run. Metrics are sampled on a stable one-second interval instead of restarting every time the active-connection count changes.
 
 ## Running locally
 
@@ -218,15 +286,14 @@ npm run start
 
 ## How to use the lab
 
-1. Start with **Open one** and watch the highlighted flow travel from a client to the VIP and then to a backend.
-2. Read the phase rail while the connection moves through `SYN`, `SYN-ACK`, `ACK`, and `ESTABLISHED`.
-3. Open the **Connection trace** panel to inspect the source port, VIP, backend leg, flags, sequence values, and routing rationale.
-4. Open several flows, then switch between RR, LC, and WRR to see the decision evidence change.
-5. Take a target offline while flows are open. It becomes `DRAINING` when existing sockets remain and is excluded from new selection.
-6. Run sustained traffic at `1/s`, `5/s`, `10/s`, or `20/s` to populate the telemetry charts.
-7. Use the **TCP flows** tab in the flight recorder to select any active or completed flow.
-8. Run the controlled 100-flow experiment to compare policy distribution.
-9. Use **Play story** for the guided eight-chapter walkthrough.
+1. Start with **Create 1 connection** and watch the highlighted connection travel from a client to the load balancer and then to a server.
+2. Read the phase rail while the connection moves through `SYN`, `SYN-ACK`, `ACK`, and `Connected`.
+3. Open **Connection details** to inspect the client address, shared address, chosen server, TCP message, and reason for the choice.
+4. Create a few more connections, then compare the three server-selection rules.
+5. Remove a server from new connections while a connection is open. It becomes `Draining` when current connections remain.
+6. Use the **connections** tab in the connection log to select an active or finished connection.
+7. Run the 100-connection comparison after explaining the basic story.
+8. Use **Start walkthrough** for the step-by-step classroom demonstration.
 
 ## Limitations and model boundaries
 
@@ -278,20 +345,42 @@ The following checks describe the intended observable behavior:
 
 | Scenario | Expected result |
 | --- | --- |
-| Open one TCP flow | The selected flow appears in the topology and progresses through SYN → SYN-ACK → ACK → ESTABLISHED → FIN → TIME-WAIT → CLOSED. |
-| Open 10/50/100 flows | The flight recorder, target distribution, and telemetry update while keeping transport and application concerns separate. |
-| Switch to Least Connections | The route rationale references active socket counts. |
+| Create one TCP connection | The selected connection appears in the topology and progresses through SYN → SYN-ACK → ACK → Connected → FIN → TIME-WAIT → Closed. |
+| Create 10/50/100 connections | The connection log, server distribution, and results update while keeping transport and application concerns separate. |
+| Switch to Least Connections | The explanation says which server had fewer active connections. |
 | Switch to Weighted Round Robin | The server weight controls appear and the benchmark shows the configured long-run ratio. |
-| Drain a target | New flows avoid the target; existing flows are not silently labeled as successful because the target was toggled. |
-| Take every target offline | New SYNs are recorded as refused/failed at the TCP boundary. |
-| Recover a target | The listener returns to the eligible pool. |
-| Reset during a burst | Old timers do not repopulate the new run with stale flows or logs. |
-| Run guided story | The eight chapters use the intended routing policy for each chapter and can be paused, advanced, replayed, or exited. |
+| Remove a server from new connections | New connections avoid that server; existing connections can finish. |
+| Take every server offline | New connection requests are recorded as refused at the TCP boundary. |
+| Bring a server online | The server becomes available for new connections again. |
+| Reset during a busy test | Old timers do not repopulate the new run with stale connections or logs. |
+| Run guided walkthrough | The eight steps can be paused, advanced one at a time, replayed, or exited. |
 | Reduced motion | CSS motion is disabled while the phase and state information remain available. |
 
 There is currently no dedicated test runner in the repository. `npm run build` is the primary automated check; manual interaction with the checklist above is the visual/integration verification layer.
 
 ## Viva prompts
+
+### What is the project in one line?
+
+It is a browser simulation that shows how a TCP load balancer chooses one server for each new connection and avoids failed servers.
+
+### What happens first when the client connects?
+
+The client sends SYN to the load balancer’s shared address. The load balancer chooses an online server, and then TCP completes SYN, SYN-ACK, and ACK.
+
+### Why does the connection stay with one server?
+
+TCP is an ordered, stateful connection. Keeping the connection with one server avoids breaking its transport state.
+
+### What happens when a server fails?
+
+The server stops receiving new connections. Existing connections can drain, and new connections are sent to another online server.
+
+### What are the three algorithms in simple words?
+
+- Round Robin: take turns.
+- Least Connections: choose the server with fewer active connections.
+- Weighted Round Robin: give larger servers more turns.
 
 ### Why does the load balancer choose a server once per TCP connection?
 

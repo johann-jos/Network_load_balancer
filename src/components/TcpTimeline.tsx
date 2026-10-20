@@ -6,13 +6,13 @@ import { useSimulation } from '../context/SimulationContext';
 import { TcpPhase } from '../types/simulation';
 
 const phases: { id: TcpPhase; flag: string; title: string; note: string }[] = [
-  { id: 'SYN_SENT', flag: 'SYN', title: 'Ask', note: 'client opens' },
-  { id: 'ROUTING', flag: 'VIP', title: 'Choose', note: 'eligible target' },
-  { id: 'SYN_ACK', flag: 'SYN-ACK', title: 'Answer', note: 'target listens' },
-  { id: 'ACK', flag: 'ACK', title: 'Confirm', note: 'handshake done' },
-  { id: 'ESTABLISHED', flag: 'DATA', title: 'Carry', note: 'ordered stream' },
-  { id: 'FIN_WAIT', flag: 'FIN', title: 'Close', note: 'graceful finish' },
-  { id: 'TIME_WAIT', flag: '2MSL', title: 'Protect', note: 'old segments expire' },
+  { id: 'SYN_SENT', flag: 'SYN', title: 'Request', note: 'client asks to connect' },
+  { id: 'ROUTING', flag: 'VIP', title: 'Choose server', note: 'load balancer picks one' },
+  { id: 'SYN_ACK', flag: 'SYN-ACK', title: 'Reply', note: 'server replies' },
+  { id: 'ACK', flag: 'ACK', title: 'Confirm', note: 'setup complete' },
+  { id: 'ESTABLISHED', flag: 'DATA', title: 'Connected', note: 'data can flow' },
+  { id: 'FIN_WAIT', flag: 'FIN', title: 'Close', note: 'finish normally' },
+  { id: 'TIME_WAIT', flag: 'TIME-WAIT', title: 'Wait safely', note: 'old messages expire' },
 ];
 
 const phaseIndex = (phase: TcpPhase | undefined) => {
@@ -32,14 +32,14 @@ export const TcpTimeline: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]">
             <Radio className="h-3.5 w-3.5" />
-            The wire, slowed down
+            Connection steps
           </div>
-          <h2 id="tcp-timeline-title" className="mt-2 font-headline text-2xl tracking-[-0.045em] text-[#e8f1f5]">Three packets to open. Four signals to close.</h2>
+          <h2 id="tcp-timeline-title" className="mt-2 font-headline text-2xl tracking-[-0.045em] text-[#e8f1f5]">Watch the connection open, carry data, and close.</h2>
         </div>
         <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-[0.13em] text-[#6f8994]">
-          <span className="text-[#73e2ad]">{tcpMetrics.establishedConnections} established</span>
+          <span className="text-[#73e2ad]">{tcpMetrics.establishedConnections} connected</span>
           <span className="h-3 w-px bg-[#b1ddea]/20" />
-          <span>{tcpMetrics.timeWaitConnections} time-wait</span>
+          <span>{tcpMetrics.timeWaitConnections} waiting to close</span>
         </div>
       </div>
 
@@ -77,8 +77,8 @@ export const TcpTimeline: React.FC = () => {
           {failed
             ? 'A TCP reset/refusal is a transport outcome; this lab stops before application-level status codes.'
             : featuredRequest
-              ? `Flow #${featuredRequest.requestId} is currently ${featuredRequest.phase.replace('_', ' ').toLowerCase()}. The animation follows state, not a decorative timer.`
-              : 'Open a flow to see the same state machine that powers the topology above.'}
+              ? `Connection #${featuredRequest.requestId} is currently ${featuredRequest.phase.replace('_', ' ').toLowerCase()}. The topology follows the same steps.`
+              : 'Create a connection to see the same steps that appear in the topology above.'}
         </span>
       </div>
     </section>

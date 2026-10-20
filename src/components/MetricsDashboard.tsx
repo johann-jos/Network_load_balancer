@@ -42,28 +42,28 @@ export const MetricsDashboard: React.FC = () => {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><Activity className="h-3.5 w-3.5" />
-            Telemetry / the aftermath
+            Results from the connections
           </div>
-          <h2 id="telemetry-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">A connection leaves evidence behind.</h2>
+          <h2 id="telemetry-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">See what the connections changed.</h2>
         </div>
         <div className="font-mono text-[10px] uppercase tracking-[0.13em] text-[#6b8792]">last {timeSeriesData.length} seconds sampled</div>
       </div>
 
       <div className="grid grid-cols-2 gap-px border border-[#b1ddea]/12 bg-[#b1ddea]/12 md:grid-cols-4 xl:grid-cols-8">
-        <MetricTile icon={Layers3} label="total flows" value={tcpMetrics.totalConnections} note="opened in this run" tone="#8ee8ff" />
-        <MetricTile icon={Radio} label="active sockets" value={tcpMetrics.activeConnections} note="on backend legs" tone="#73e2ad" />
-        <MetricTile icon={ShieldAlert} label="SYN backlog" value={tcpMetrics.synBacklog} note="handshakes in flight" tone="#f5c76f" />
-        <MetricTile icon={Timer} label="TIME-WAIT" value={tcpMetrics.timeWaitConnections} note="delayed segment guard" tone="#f5c76f" />
-        <MetricTile icon={Clock3} label="handshake" value={`${tcpMetrics.averageHandshakeMs}ms`} note="SYN to ACK average" tone="#8ee8ff" />
-        <MetricTile icon={Gauge} label="latency" value={`${averageLatency}ms`} note="synthetic service delay" tone="#73e2ad" />
-        <MetricTile icon={BarChart3} label="observed" value={`${tcpMetrics.observedRps}/s`} note="recent closed flows" tone="#8ee8ff" />
-        <MetricTile icon={Activity} label="configured" value={isContinuousTraffic ? `${trafficRateRps}/s` : 'idle'} note="continuous open rate" tone="#b4c8cf" />
+        <MetricTile icon={Layers3} label="total connections" value={tcpMetrics.totalConnections} note="created in this run" tone="#8ee8ff" />
+        <MetricTile icon={Radio} label="active connections" value={tcpMetrics.activeConnections} note="currently open" tone="#73e2ad" />
+        <MetricTile icon={ShieldAlert} label="being set up" value={tcpMetrics.synBacklog} note="SYN handshake in progress" tone="#f5c76f" />
+        <MetricTile icon={Timer} label="waiting to close" value={tcpMetrics.timeWaitConnections} note="short TCP safety wait" tone="#f5c76f" />
+        <MetricTile icon={Clock3} label="setup time" value={`${tcpMetrics.averageHandshakeMs}ms`} note="SYN to ACK average" tone="#8ee8ff" />
+        <MetricTile icon={Gauge} label="simulated delay" value={`${averageLatency}ms`} note="teaching value, not real RTT" tone="#73e2ad" />
+        <MetricTile icon={BarChart3} label="finished / sec" value={`${tcpMetrics.observedRps}/s`} note="recently closed" tone="#8ee8ff" />
+        <MetricTile icon={Activity} label="new / sec" value={isContinuousTraffic ? `${trafficRateRps}/s` : 'idle'} note="continuous connection rate" tone="#b4c8cf" />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="lab-panel min-h-[300px] p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
-            <div><h3 className="font-headline text-base text-[#e8f1f5]">Who is carrying the load?</h3><p className="mt-1 text-[10px] text-[#6e8994]">Accepted TCP connections per target</p></div>
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">How many connections did each server receive?</h3><p className="mt-1 text-[10px] text-[#6e8994]">Connections routed to each server</p></div>
             <BarChart3 className="h-4 w-4 text-[#8ee8ff]" />
           </div>
           <div className="h-56 w-full">
@@ -83,7 +83,7 @@ export const MetricsDashboard: React.FC = () => {
 
         <div className="lab-panel min-h-[300px] p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
-            <div><h3 className="font-headline text-base text-[#e8f1f5]">Pressure through the handshake</h3><p className="mt-1 text-[10px] text-[#6e8994]">Active sockets, SYN backlog, and TIME-WAIT</p></div>
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">Connections during setup and close</h3><p className="mt-1 text-[10px] text-[#6e8994]">Active connections, setup requests, and safety waits</p></div>
             <Radio className="h-4 w-4 text-[#73e2ad]" />
           </div>
           <div className="h-56 w-full">
@@ -104,7 +104,7 @@ export const MetricsDashboard: React.FC = () => {
 
         <div className="lab-panel min-h-[300px] p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
-            <div><h3 className="font-headline text-base text-[#e8f1f5]">Target CPU curves</h3><p className="mt-1 text-[10px] text-[#6e8994]">Synthetic pressure follows active connection count</p></div>
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">Simulated server load</h3><p className="mt-1 text-[10px] text-[#6e8994]">This teaching value rises as active connections rise</p></div>
             <Gauge className="h-4 w-4 text-[#f5c76f]" />
           </div>
           <div className="h-56 w-full">
@@ -123,7 +123,7 @@ export const MetricsDashboard: React.FC = () => {
 
         <div className="lab-panel min-h-[300px] p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
-            <div><h3 className="font-headline text-base text-[#e8f1f5]">How flows ended</h3><p className="mt-1 text-[10px] text-[#6e8994]">A transport outcome, not an HTTP status code</p></div>
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">How connections ended</h3><p className="mt-1 text-[10px] text-[#6e8994]">Connection results, not web-page status codes</p></div>
             <ShieldAlert className="h-4 w-4 text-[#ff7d79]" />
           </div>
           <div className="flex h-56 items-center justify-center">
@@ -137,14 +137,14 @@ export const MetricsDashboard: React.FC = () => {
                   <Legend wrapperStyle={{ fontSize: 10, color: '#78929d' }} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <div className="text-center font-mono text-xs text-[#66818d]">No closed flows yet.<br /><span className="text-[#8ee8ff]">Open a TCP flow to populate the trace.</span></div>}
+            ) : <div className="text-center font-mono text-xs text-[#66818d]">No finished connections yet.<br /><span className="text-[#8ee8ff]">Create one connection to populate the results.</span></div>}
           </div>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-l-2 border-[#8ee8ff]/50 bg-[#091722] px-4 py-3 text-[10px] leading-5 text-[#78929d]">
-        <span><strong className="text-[#dbe9ee]">Reading the chart:</strong> active sockets count concurrent connections, not packets per second.</span>
-        <span><strong className="text-[#dbe9ee]">TIME-WAIT:</strong> a protective TCP state after graceful close.</span>
+        <span><strong className="text-[#dbe9ee]">Reading the chart:</strong> active connections are connections open at the same time, not packets per second.</span>
+        <span><strong className="text-[#dbe9ee]">Waiting to close:</strong> a short safety period after a normal TCP close.</span>
       </div>
     </section>
   );

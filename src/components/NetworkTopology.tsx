@@ -61,23 +61,23 @@ export const NetworkTopology: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]">
             <Network className="h-3.5 w-3.5" />
-            Live topology / TCP proxy view
+            How a connection travels
           </div>
-          <h2 id="topology-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5] sm:text-3xl">The route is a sequence, not a straight line.</h2>
-          <p className="mt-2 max-w-xl text-xs leading-5 text-[#849da8]">The VIP accepts the client leg, chooses one target, then carries the transport story across a second leg.</p>
+          <h2 id="topology-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5] sm:text-3xl">Client → load balancer → one server</h2>
+          <p className="mt-2 max-w-xl text-xs leading-5 text-[#849da8]">The client uses one shared address. The load balancer chooses one online server and keeps this connection with it.</p>
         </div>
         <div className="flex shrink-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[#6f8994]">
           <span className="flex items-center gap-2 border border-[#73e2ad]/20 bg-[#0a201c] px-2.5 py-1.5 text-[#73e2ad]">
-            <Radio className="h-3 w-3" /> TCP only
+            <Radio className="h-3 w-3" /> TCP connections
           </span>
-          <span className="border border-[#8ee8ff]/20 bg-[#091722] px-2.5 py-1.5 text-[#8ee8ff]">{activeRequests.length} in flight</span>
+          <span className="border border-[#8ee8ff]/20 bg-[#091722] px-2.5 py-1.5 text-[#8ee8ff]">{activeRequests.length} starting / active</span>
         </div>
       </div>
 
       <div className="relative z-[1] mt-4 overflow-hidden border border-[#b1ddea]/12 bg-[#050c12]">
         <svg viewBox="0 0 1000 470" className="h-auto min-h-[360px] w-full" role="img" aria-labelledby="topology-svg-title topology-svg-desc">
           <title id="topology-svg-title">TCP client to virtual IP to backend server topology</title>
-          <desc id="topology-svg-desc">Three clients connect to a virtual load balancer. The load balancer chooses one healthy TCP backend while animated segments show the current flow phase.</desc>
+          <desc id="topology-svg-desc">Three clients connect to a shared load-balancer address. The load balancer chooses one online server while animated TCP messages show the connection step.</desc>
           <defs>
             <filter id="soft-cyan" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="5" result="blur" />
@@ -97,8 +97,8 @@ export const NetworkTopology: React.FC = () => {
             </linearGradient>
           </defs>
 
-          <text x="26" y="28" fill="#597480" fontSize="10" fontFamily="JetBrains Mono, monospace" letterSpacing="2">CLIENT LEG / SOURCE SOCKETS</text>
-          <text x="780" y="28" fill="#597480" fontSize="10" fontFamily="JetBrains Mono, monospace" letterSpacing="2">TARGET LEG / LISTEN :8080</text>
+          <text x="26" y="28" fill="#597480" fontSize="10" fontFamily="JetBrains Mono, monospace" letterSpacing="2">CLIENTS / SOURCE ADDRESS</text>
+          <text x="780" y="28" fill="#597480" fontSize="10" fontFamily="JetBrains Mono, monospace" letterSpacing="2">SERVERS / PORT :8080</text>
 
           {clients.map((client) => {
             const point = clientPoints[client.id];
@@ -153,7 +153,7 @@ export const NetworkTopology: React.FC = () => {
                 <circle cx="-37" cy="-17" r="4" fill="#8ee8ff" />
                 <text x="0" y="-8" textAnchor="middle" fill="#e8f1f5" fontSize="12" fontWeight="700" fontFamily="Space Grotesk, sans-serif">{client.name}</text>
                 <text x="0" y="10" textAnchor="middle" fill="#72909c" fontSize="9" fontFamily="JetBrains Mono, monospace">{client.ip}</text>
-                <text x="0" y="23" textAnchor="middle" fill="#4e6d78" fontSize="8" fontFamily="JetBrains Mono, monospace">{client.activeConnections} open</text>
+                <text x="0" y="23" textAnchor="middle" fill="#4e6d78" fontSize="8" fontFamily="JetBrains Mono, monospace">{client.activeConnections} active</text>
               </g>
             );
           })}
@@ -161,8 +161,8 @@ export const NetworkTopology: React.FC = () => {
           <g transform={`translate(${loadBalancerPoint.x} ${loadBalancerPoint.y})`}>
             <circle r="72" fill="#0c2a36" fillOpacity="0.2" stroke="#8ee8ff" strokeOpacity="0.22" strokeDasharray="2 9" />
             <rect x="-76" y="-51" width="152" height="102" fill="#0b202b" stroke="#8ee8ff" strokeWidth="2" filter="url(#soft-cyan)" />
-            <text x="0" y="-25" textAnchor="middle" fill="#8ee8ff" fontSize="9" fontFamily="JetBrains Mono, monospace" letterSpacing="1.5">VIP / LISTENER</text>
-            <text x="0" y="1" textAnchor="middle" fill="#e8f1f5" fontSize="15" fontWeight="800" fontFamily="Space Grotesk, sans-serif">TCP GATEWAY</text>
+            <text x="0" y="-25" textAnchor="middle" fill="#8ee8ff" fontSize="9" fontFamily="JetBrains Mono, monospace" letterSpacing="1.5">SHARED ADDRESS / VIP</text>
+            <text x="0" y="1" textAnchor="middle" fill="#e8f1f5" fontSize="15" fontWeight="800" fontFamily="Space Grotesk, sans-serif">LOAD BALANCER</text>
             <text x="0" y="20" textAnchor="middle" fill="#7bb9c8" fontSize="10" fontFamily="JetBrains Mono, monospace">192.168.1.100:443</text>
             <rect x="-54" y="30" width="108" height="11" fill="#08131b" />
             <text x="0" y="38" textAnchor="middle" fill="#6b9aa8" fontSize="8" fontFamily="JetBrains Mono, monospace">{algorithm.replaceAll('_', ' ')}</text>
@@ -177,23 +177,23 @@ export const NetworkTopology: React.FC = () => {
                 <circle cx="-49" cy="-20" r="4.5" fill={tone.stroke} />
                 <text x="6" y="-12" textAnchor="middle" fill="#e8f1f5" fontSize="12" fontWeight="700" fontFamily="Space Grotesk, sans-serif">{server.name}</text>
                 <text x="0" y="6" textAnchor="middle" fill="#76909a" fontSize="9" fontFamily="JetBrains Mono, monospace">{server.ip}:8080</text>
-                <text x="0" y="21" textAnchor="middle" fill={tone.text} fontSize="9" fontWeight="700" fontFamily="JetBrains Mono, monospace">{server.status === 'ONLINE' ? `${server.activeConnections} sockets · ${server.cpuLoad}%` : server.status}</text>
+                <text x="0" y="21" textAnchor="middle" fill={tone.text} fontSize="9" fontWeight="700" fontFamily="JetBrains Mono, monospace">{server.status === 'ONLINE' ? `${server.activeConnections} active · ${server.cpuLoad}%` : server.status === 'DRAINING' ? 'draining · no new' : 'offline · no new'}</text>
               </g>
             );
           })}
         </svg>
 
         <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#b1ddea]/10 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[#64818c]">
-          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#8ee8ff]" /> SYN / control segment</span>
-          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#73e2ad]" /> established / data stream</span>
-          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#f5c76f]" /> drain / time-wait</span>
+          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#8ee8ff]" /> SYN / connection request</span>
+          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#73e2ad]" /> connected / data</span>
+          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#f5c76f]" /> closing / safety wait</span>
         </div>
       </div>
 
       <div className="relative z-[1] mt-4 flex flex-wrap items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.14em] text-[#6b8792]">
-        <span className="flex items-center gap-2"><CircleDot className="h-3.5 w-3.5 text-[#8ee8ff]" /> Selected flow: {featuredRequest ? `#${featuredRequest.requestId} / ${featuredRequest.currentFlag}` : 'waiting for SYN'}</span>
-        <span className="flex items-center gap-2"><ServerIcon className="h-3.5 w-3.5 text-[#73e2ad]" /> Eligible targets avoid OFFLINE and DRAINING nodes</span>
-        <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-[#73e2ad]" /> health is simulated</span>
+        <span className="flex items-center gap-2"><CircleDot className="h-3.5 w-3.5 text-[#8ee8ff]" /> Selected connection: {featuredRequest ? `#${featuredRequest.requestId} / ${featuredRequest.currentFlag}` : 'create one to begin'}</span>
+        <span className="flex items-center gap-2"><ServerIcon className="h-3.5 w-3.5 text-[#73e2ad]" /> New connections use online servers only</span>
+        <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-[#73e2ad]" /> status is simulated</span>
       </div>
     </section>
   );

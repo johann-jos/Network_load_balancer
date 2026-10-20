@@ -4,13 +4,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDownRight, BookOpen, CircleDot, Radio, ShieldCheck } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import { ALGORITHM_LABELS } from '../lib/simulationEngine';
+import { ALGORITHM_LABELS, TCP_PHASE_LABELS } from '../lib/simulationEngine';
 
 const chapters = [
-  ['01', 'A SYN appears'],
-  ['02', 'The VIP decides'],
-  ['03', 'The socket opens'],
-  ['04', 'The flow closes'],
+  ['01', 'Client asks to connect'],
+  ['02', 'Load balancer chooses'],
+  ['03', 'Connection is established'],
+  ['04', 'Connection closes'],
 ];
 
 export const StoryIntro: React.FC = () => {
@@ -27,13 +27,13 @@ export const StoryIntro: React.FC = () => {
       <div>
         <div className="mb-8 flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.22em] text-[#8ee8ff]">
           <span className="h-1.5 w-1.5 rounded-full bg-[#73e2ad] shadow-[0_0_0_4px_rgba(115,226,173,0.12)]" />
-          TCP / connection lab
+          TCP / classroom lab
         </div>
         <h2 className="max-w-[12ch] font-headline text-4xl font-semibold leading-[0.97] tracking-[-0.06em] text-[#e8f1f5] sm:text-5xl">
           Follow one connection all the way through.
         </h2>
         <p className="mt-5 max-w-sm text-sm leading-7 text-[#9ab0ba]">
-          A transport-layer story: a client opens a socket, the VIP chooses a healthy target, and TCP closes cleanly when the work is done.
+          A simple story: a client asks to connect, the load balancer chooses one online server, and the connection closes normally when the work is done.
         </p>
 
         <div className="mt-8 grid gap-3">
@@ -53,38 +53,38 @@ export const StoryIntro: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-[#6e8b97]">
                 <Radio className="h-3.5 w-3.5 text-[#8ee8ff]" />
-                Current chapter
+                 Current step
               </div>
-              <p className="mt-2 font-mono text-lg text-[#8ee8ff]">{phase.replace('_', ' ')}</p>
+              <p className="mt-2 font-mono text-lg text-[#8ee8ff]">{TCP_PHASE_LABELS[phase]}</p>
             </div>
             <CircleDot className="h-5 w-5 text-[#73e2ad] animate-breathe" />
           </div>
           <p className="mt-2 text-[11px] leading-5 text-[#89a3ae]">
             {featuredRequest
-              ? `Flow #${featuredRequest.requestId} is the current trace. Select it in the recorder for the full socket header.`
-              : 'Press “Open TCP flow” to put a real connection on the stage.'}
+              ? `Connection #${featuredRequest.requestId} is the current example. Select it in the connection log for more details.`
+              : 'Click “Create 1 connection” to watch one connection from start to finish.'}
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
           <div className="border border-[#b1ddea]/12 bg-[#0a151e] p-3">
-            <div className="text-[#698692]">policy</div>
+            <div className="text-[#698692]">selection rule</div>
             <div className="mt-1 truncate text-[#dbe9ee]">{ALGORITHM_LABELS[algorithm]}</div>
           </div>
           <div className="border border-[#b1ddea]/12 bg-[#0a151e] p-3">
-            <div className="text-[#698692]">open sockets</div>
+            <div className="text-[#698692]">active connections</div>
             <div className="mt-1 text-[#73e2ad]">{tcpMetrics.activeConnections}</div>
           </div>
         </div>
 
         <a href="#tcp-notes" className="flex items-center gap-2 pt-2 text-[11px] text-[#8ea6b0] transition-colors hover:text-[#8ee8ff]">
           <BookOpen className="h-3.5 w-3.5" />
-          Read the research notes
+          Learn the key ideas
           <ArrowDownRight className="ml-auto h-3.5 w-3.5" />
         </a>
         <div className="flex items-center gap-2 text-[10px] text-[#68828d]">
           <ShieldCheck className="h-3.5 w-3.5 text-[#73e2ad]" />
-          Simulation only · no live packets leave this browser
+          Practice only · no real packets are sent
         </div>
       </div>
     </motion.aside>

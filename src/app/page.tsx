@@ -15,6 +15,7 @@ import { ServerCard } from '../components/ServerCard';
 import { SimulationControls } from '../components/SimulationControls';
 import { StoryIntro } from '../components/StoryIntro';
 import { TcpTimeline } from '../components/TcpTimeline';
+import { TeachingCue } from '../components/TeachingCue';
 import { useSimulation } from '../context/SimulationContext';
 
 export default function Home() {
@@ -25,6 +26,7 @@ export default function Home() {
       <Header />
       <main className="mx-auto max-w-[1800px] space-y-6 px-4 py-6 sm:px-6 lg:space-y-8 lg:py-10">
         <DemoBanner />
+        <TeachingCue />
 
         <section id="story" className="grid gap-6 lg:grid-cols-[0.72fr_1.85fr_0.78fr] lg:gap-7">
           <StoryIntro />
@@ -32,21 +34,32 @@ export default function Home() {
           <ConnectionInspector />
         </section>
 
-        <div className="flex items-center gap-3 px-1 text-[10px] font-mono uppercase tracking-[0.18em] text-[#54727e]"><span className="h-px flex-1 bg-[#b1ddea]/12" /><ArrowDown className="h-3.5 w-3.5 text-[#8ee8ff]" /><span>now slow it down</span><span className="h-px flex-1 bg-[#b1ddea]/12" /></div>
+        <div className="flex items-center gap-3 px-1 text-[10px] font-mono uppercase tracking-[0.18em] text-[#54727e]"><span className="h-px flex-1 bg-[#b1ddea]/12" /><ArrowDown className="h-3.5 w-3.5 text-[#8ee8ff]" /><span>follow the steps</span><span className="h-px flex-1 bg-[#b1ddea]/12" /></div>
         <TcpTimeline />
         <SimulationControls />
 
         <section aria-labelledby="pool-title">
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
             <div>
-              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><ServerIcon className="h-3.5 w-3.5" /> Listener pool</div>
-              <h2 id="pool-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">Three listeners. One decision at a time.</h2>
-              <p className="mt-1 text-xs text-[#8099a4]">Stop intake, watch connections drain, then recover a target into the eligible pool.</p>
+              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><ServerIcon className="h-3.5 w-3.5" /> Available servers</div>
+              <h2 id="pool-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">Three servers. One connection at a time.</h2>
+              <p className="mt-1 text-xs text-[#8099a4]">Remove a server from new connections, let current connections finish, then bring it back online.</p>
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-[#62808b]">TCP :8080 / simulated health</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-[#62808b]">server port :8080 / status is simulated</span>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {servers.map((server) => <ServerCard key={server.id} server={server} />)}
+          </div>
+        </section>
+
+        <section className="border-l-2 border-[#73e2ad] bg-[#091722] px-4 py-4 sm:px-5" aria-labelledby="details-title">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#73e2ad]">After the basic story</div>
+              <h2 id="details-title" className="mt-1 font-headline text-xl tracking-[-0.04em] text-[#e8f1f5]">Now explore the results.</h2>
+              <p className="mt-1 text-xs leading-5 text-[#8da6b0]">The top half is the explanation. These panels are optional evidence for the algorithms, server load, and research discussion.</p>
+            </div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-[#63808b]">optional detail</span>
           </div>
         </section>
 

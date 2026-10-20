@@ -194,15 +194,15 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     patchActiveRequest(id, phasePatch);
 
-    if (phase === 'ROUTING') logEvent('INFO', `VIP received SYN #${current.requestId}; evaluating ${algorithmRef.current.replaceAll('_', ' ').toLowerCase()}.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
-    if (phase === 'SYN_ACK') logEvent('INFO', `SYN-ACK returned from ${current.selectedServerIp}; backend leg is half-open.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
+    if (phase === 'ROUTING') logEvent('INFO', `Load balancer received connection request #${current.requestId}; checking the ${algorithmRef.current.replaceAll('_', ' ').toLowerCase()} rule.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
+    if (phase === 'SYN_ACK') logEvent('INFO', `The chosen server replied to connection #${current.requestId}.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
     if (phase === 'ACK') {
       updateServerConnectionMetrics(current.selectedServerId ?? '', 0, phase);
-      logEvent('INFO', `ACK completed the handshake for TCP flow #${current.requestId}.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
+      logEvent('INFO', `Connection #${current.requestId} is ready to carry data.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
     }
-    if (phase === 'ESTABLISHED') logEvent('SUCCESS', `Flow #${current.requestId} is ESTABLISHED on ${current.selectedServerIp}.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
-    if (phase === 'FIN_WAIT') logEvent('INFO', `FIN sent for flow #${current.requestId}; graceful close begins.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
-    if (phase === 'TIME_WAIT') logEvent('INFO', `Flow #${current.requestId} entered TIME-WAIT to protect delayed segments.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
+    if (phase === 'ESTABLISHED') logEvent('SUCCESS', `Connection #${current.requestId} is active on ${current.selectedServerIp}.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
+    if (phase === 'FIN_WAIT') logEvent('INFO', `Connection #${current.requestId} is closing normally.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
+    if (phase === 'TIME_WAIT') logEvent('INFO', `Connection #${current.requestId} is waiting briefly so old messages cannot cause confusion.`, current.requestId, current.selectedServerId ?? undefined, phase, flag);
   }, [logEvent, patchActiveRequest, updateServerConnectionMetrics]);
 
   const finishConnection = useCallback((id: string) => {
@@ -232,7 +232,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         client.ip === current.clientIp ? { ...client, activeConnections: Math.max(0, client.activeConnections - 1) } : client,
       ),
     );
-    logEvent('SUCCESS', `TCP flow #${current.requestId} CLOSED cleanly after ${completedRequest.durationMs}ms.`, current.requestId, current.selectedServerId ?? undefined, 'CLOSED', 'FIN');
+    logEvent('SUCCESS', `Connection #${current.requestId} closed normally after ${completedRequest.durationMs}ms.`, current.requestId, current.selectedServerId ?? undefined, 'CLOSED', 'FIN');
 
     if (current.selectedServerId) {
       commitServers(
@@ -267,12 +267,12 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         phase: 'FAILED',
         currentFlag: 'RST',
         status: 'FAILED',
-        failureReason: 'No healthy TCP target is accepting new connections.',
+        failureReason: 'No server is accepting new connections.',
         durationMs: 40,
       };
       requestHistoryRef.current = [failedRequest, ...requestHistoryRef.current.slice(0, 499)];
       setRequestHistory(requestHistoryRef.current);
-      logEvent('ERROR', `SYN #${requestId} refused: no healthy target in the pool.`, requestId, undefined, 'FAILED', 'RST');
+      logEvent('ERROR', `Connection request #${requestId} was refused because no server is accepting new connections.`, requestId, undefined, 'FAILED', 'RST');
       return;
     }
 
@@ -310,7 +310,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clientItem.ip === client ? { ...clientItem, activeConnections: clientItem.activeConnections + 1 } : clientItem,
       ),
     );
-    logEvent('INFO', `SYN #${requestId} from ${client}:${request.sourcePort} → VIP ${LOAD_BALANCER_IP}:${LOAD_BALANCER_PORT}.`, requestId, selectedServer.id, 'SYN_SENT', 'SYN');
+    logEvent('INFO', `Connection request #${requestId} from ${client}:${request.sourcePort} → load balancer ${LOAD_BALANCER_IP}:${LOAD_BALANCER_PORT}.`, requestId, selectedServer.id, 'SYN_SENT', 'SYN');
 
     schedule(() => transitionConnection(request.id, 'ROUTING', 'SYN', 'CONNECTING'), 320);
     schedule(() => transitionConnection(request.id, 'SYN_ACK', 'SYN-ACK', 'CONNECTING'), 720);
@@ -325,7 +325,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const sendBatchRequests = useCallback((count: number, algorithmOverride?: AlgorithmType) => {
     const boundedCount = Math.max(1, Math.min(150, count));
-    logEvent('SYSTEM', `Opening ${boundedCount} TCP connections with ${algorithmOverride ? algorithmOverride.replaceAll('_', ' ') : algorithmRef.current.replaceAll('_', ' ')}.`);
+    logEvent('SYSTEM', `Creating ${boundedCount} TCP connections using ${algorithmOverride ? algorithmOverride.replaceAll('_', ' ') : algorithmRef.current.replaceAll('_', ' ')}.`);
     const interval = Math.max(70, Math.floor(900 / Math.min(boundedCount, 12)));
     for (let index = 0; index < boundedCount; index += 1) {
       schedule(() => processRequest(undefined, algorithmOverride), index * interval);
@@ -337,7 +337,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const safeRate = Math.max(1, Math.min(20, rps));
     setTrafficRateRps(safeRate);
     setIsContinuousTraffic(true);
-    logEvent('SYSTEM', `Continuous TCP connection pressure set to ${safeRate} opens/sec.`);
+    logEvent('SYSTEM', `Creating new TCP connections at ${safeRate} per second.`);
     continuousTimerRef.current = setInterval(() => processRequest(), 1000 / safeRate);
   }, [logEvent, processRequest]);
 
@@ -345,7 +345,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (continuousTimerRef.current) clearInterval(continuousTimerRef.current);
     continuousTimerRef.current = null;
     setIsContinuousTraffic(false);
-    logEvent('SYSTEM', 'Continuous TCP connection pressure stopped.');
+    logEvent('SYSTEM', 'Stopped creating new connections.');
   }, [logEvent]);
 
   const setTrafficRate = useCallback((rps: number) => {
@@ -382,9 +382,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ),
     );
     if (takingOffline) {
-      logEvent('WARNING', `${currentServer.name} stopped accepting new SYNs; existing flows will drain.`, undefined, serverId, 'FAILED', 'RST');
+      logEvent('WARNING', `${currentServer.name} will not receive new connections; existing connections can finish.`, undefined, serverId, 'FAILED', 'RST');
     } else {
-      logEvent('SUCCESS', `${currentServer.name} rejoined the eligible TCP target pool.`, undefined, serverId, 'ROUTING', 'SYN');
+      logEvent('SUCCESS', `${currentServer.name} is online again and can receive new connections.`, undefined, serverId, 'ROUTING', 'SYN');
     }
   }, [commitServers, logEvent]);
 
@@ -396,7 +396,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const clearLogs = useCallback(() => {
     setEventLogs([]);
-    logEvent('SYSTEM', 'Flight recorder cleared.');
+    logEvent('SYSTEM', 'Connection log cleared.');
   }, [logEvent]);
 
   const resetSimulation = useCallback(() => {
@@ -426,11 +426,11 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLastRouteDecision(null);
     setIsContinuousTraffic(false);
     setDemoState({ active: false, currentStep: 0, totalSteps: DEMO_STEPS, stepTitle: '', description: '', isPaused: false });
-    logEvent('SYSTEM', 'Simulation reset. TCP sockets, queues, and counters are clear.');
+    logEvent('SYSTEM', 'Simulation reset. Connections, counters, and results are clear.');
   }, [clearScheduledWork, logEvent]);
 
   useEffect(() => {
-    logEvent('SYSTEM', 'TCP connection lab online. Three eligible targets are listening on :8080.');
+    logEvent('SYSTEM', 'Simulation ready. Three servers can accept new connections on port :8080.');
   }, [logEvent]);
 
   useEffect(() => {
@@ -470,43 +470,38 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const runDemoStep = useCallback((step: number) => {
     if (demoTimerRef.current) cancelTimer(demoTimerRef.current);
-    const base = { active: true, currentStep: step, totalSteps: DEMO_STEPS, isPaused: false };
+    const base = { active: true, currentStep: step, totalSteps: DEMO_STEPS, isPaused: !demoAutoRef.current };
     switch (step) {
       case 1:
-        setDemoState({ ...base, stepTitle: 'Open the first TCP flow', description: 'A client sends SYN to the VIP. Watch the load balancer choose the next eligible target.' });
+        setDemoState({ ...base, stepTitle: 'Meet the players', description: 'The client uses one shared address. The load balancer will choose one of the three online servers.' });
         setAlgorithm('ROUND_ROBIN');
-        sendBatchRequests(5, 'ROUND_ROBIN');
         break;
       case 2:
-        setDemoState({ ...base, stepTitle: 'Let active sockets steer the next flow', description: 'Least connections reads the live table instead of blindly following a turn order.' });
-        setAlgorithm('LEAST_CONNECTIONS');
-        sendBatchRequests(8, 'LEAST_CONNECTIONS');
+        setDemoState({ ...base, stepTitle: 'The client asks to connect', description: 'Clicking this step creates one TCP connection. Watch the SYN travel to the load balancer.' });
+        sendSingleRequest('192.168.1.10');
         break;
       case 3:
-        setDemoState({ ...base, stepTitle: 'Remove a target without killing the story', description: 'ORBIT / 02 enters drain mode: new TCP handshakes avoid it while established connections finish.' });
-        toggleServerStatus('server-2');
+        setDemoState({ ...base, stepTitle: 'The load balancer chooses one server', description: 'Round Robin takes turns. The chosen server stays associated with this connection until it closes.' });
         break;
       case 4:
-        setDemoState({ ...base, stepTitle: 'Fail over new SYNs', description: 'The eligible pool shrinks to two nodes. No new connection is routed to the draining target.' });
-        sendBatchRequests(12, 'LEAST_CONNECTIONS');
+        setDemoState({ ...base, stepTitle: 'The TCP handshake completes', description: 'SYN, SYN-ACK, and ACK complete the setup. The connection is now established and can carry data.' });
         break;
       case 5:
-        setDemoState({ ...base, stepTitle: 'Recover and rejoin', description: 'The listener returns to the pool. A recovered node can accept new TCP flows again.' });
-        toggleServerStatus('server-2');
-        sendBatchRequests(6, 'LEAST_CONNECTIONS');
+        setDemoState({ ...base, stepTitle: 'A second connection can choose another server', description: 'The first connection stays with its server. A new connection gets a new selection.' });
+        sendSingleRequest('192.168.1.10');
         break;
       case 6:
-        setDemoState({ ...base, stepTitle: 'Give capacity a voice', description: 'Weighted round robin now expresses a 5 : 3 : 2 capacity ratio across the cluster.' });
-        setAlgorithm('WEIGHTED_ROUND_ROBIN');
-        sendBatchRequests(20, 'WEIGHTED_ROUND_ROBIN');
+        setDemoState({ ...base, stepTitle: 'Remove a server from new connections', description: 'Server 2 stops receiving new connections. Any connection already using it can finish normally.' });
+        toggleServerStatus('server-2');
         break;
       case 7:
-        setDemoState({ ...base, stepTitle: 'Stress the handshake queue', description: 'A burst fills the visual SYN backlog, then established sockets drain through FIN and TIME-WAIT.' });
-        sendBatchRequests(30, 'WEIGHTED_ROUND_ROBIN');
+        setDemoState({ ...base, stepTitle: 'New connections fail over', description: 'The next connection skips the unavailable server and is sent to another online server.' });
+        sendSingleRequest('192.168.1.10');
         break;
       case 8:
         demoAutoRef.current = false;
-        setDemoState({ active: true, currentStep: DEMO_STEPS, totalSteps: DEMO_STEPS, stepTitle: 'The connection has a life cycle', description: 'Replay the chapters, inspect a flow, or take control of the routing policy.', isPaused: true });
+        toggleServerStatus('server-2');
+        setDemoState({ active: true, currentStep: DEMO_STEPS, totalSteps: DEMO_STEPS, stepTitle: 'The connection closes and the server recovers', description: 'FIN begins a normal close, TIME-WAIT is a short safety wait, and Server 2 can accept new connections again.', isPaused: true });
         break;
       default:
         break;
@@ -515,13 +510,13 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (step < DEMO_STEPS && demoAutoRef.current) {
       demoTimerRef.current = schedule(() => runDemoStepRef.current(step + 1), 4800);
     }
-  }, [cancelTimer, schedule, sendBatchRequests, setAlgorithm, toggleServerStatus]);
+  }, [cancelTimer, schedule, sendSingleRequest, setAlgorithm, toggleServerStatus]);
 
   runDemoStepRef.current = runDemoStep;
 
   const startDemoMode = useCallback(() => {
     resetSimulation();
-    demoAutoRef.current = true;
+    demoAutoRef.current = false;
     schedule(() => runDemoStepRef.current(1), 450);
   }, [resetSimulation, schedule]);
 

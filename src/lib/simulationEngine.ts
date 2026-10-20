@@ -11,7 +11,7 @@ import {
 export const DEFAULT_SERVERS: Server[] = [
   {
     id: 'server-1',
-    name: 'ORBIT / 01',
+    name: 'Server 1',
     ip: '192.168.1.101',
     port: 8080,
     protocol: 'TCP',
@@ -25,11 +25,11 @@ export const DEFAULT_SERVERS: Server[] = [
     responseTimeMs: 35,
     weight: 5,
     maxCapacity: 50,
-    zone: 'us-east / blue',
+    zone: 'primary',
   },
   {
     id: 'server-2',
-    name: 'ORBIT / 02',
+    name: 'Server 2',
     ip: '192.168.1.102',
     port: 8080,
     protocol: 'TCP',
@@ -43,11 +43,11 @@ export const DEFAULT_SERVERS: Server[] = [
     responseTimeMs: 28,
     weight: 3,
     maxCapacity: 50,
-    zone: 'us-east / green',
+    zone: 'primary',
   },
   {
     id: 'server-3',
-    name: 'ORBIT / 03',
+    name: 'Server 3',
     ip: '192.168.1.103',
     port: 8080,
     protocol: 'TCP',
@@ -61,14 +61,14 @@ export const DEFAULT_SERVERS: Server[] = [
     responseTimeMs: 42,
     weight: 2,
     maxCapacity: 50,
-    zone: 'us-east / amber',
+    zone: 'primary',
   },
 ];
 
 export const DEFAULT_CLIENTS: Client[] = [
-  { id: 'client-1', name: 'CLIENT / A', ip: '192.168.1.10', activeConnections: 0 },
-  { id: 'client-2', name: 'CLIENT / B', ip: '192.168.1.11', activeConnections: 0 },
-  { id: 'client-3', name: 'CLIENT / C', ip: '192.168.1.12', activeConnections: 0 },
+  { id: 'client-1', name: 'Client A', ip: '192.168.1.10', activeConnections: 0 },
+  { id: 'client-2', name: 'Client B', ip: '192.168.1.11', activeConnections: 0 },
+  { id: 'client-3', name: 'Client C', ip: '192.168.1.12', activeConnections: 0 },
 ];
 
 export const LOAD_BALANCER_IP = '192.168.1.100';
@@ -80,9 +80,23 @@ export interface LoadBalancerState {
 }
 
 export const ALGORITHM_LABELS: Record<AlgorithmType, string> = {
-  ROUND_ROBIN: 'Round robin',
-  LEAST_CONNECTIONS: 'Least connections',
-  WEIGHTED_ROUND_ROBIN: 'Weighted round robin',
+  ROUND_ROBIN: 'Take turns (Round Robin)',
+  LEAST_CONNECTIONS: 'Fewest connections (Least Connections)',
+  WEIGHTED_ROUND_ROBIN: 'Weighted turns (Weighted Round Robin)',
+};
+
+export const TCP_PHASE_LABELS: Record<string, string> = {
+  IDLE: 'Ready for a connection',
+  SYN_SENT: 'Requesting a connection',
+  ROUTING: 'Choosing a server',
+  SYN_ACK: 'Server replied',
+  ACK: 'Connection confirmed',
+  ESTABLISHED: 'Connected',
+  FIN_WAIT: 'Closing normally',
+  TIME_WAIT: 'Short safety wait',
+  CLOSED: 'Closed',
+  FAILED: 'Connection refused',
+  RST: 'Connection reset',
 };
 
 const onlineServers = (servers: Server[]) => servers.filter((server) => server.status === 'ONLINE');
@@ -182,7 +196,7 @@ export function buildRouteDecision(
 
   const rationale = selectedServer
     ? algorithm === 'ROUND_ROBIN'
-      ? 'next eligible target in the rotation'
+      ? 'next available server in the rotation'
       : algorithm === 'LEAST_CONNECTIONS'
         ? `${selectedServer.activeConnections} active socket${selectedServer.activeConnections === 1 ? '' : 's'} at decision time`
         : `weight ${selectedServer.weight} wins the smooth weighted score`
