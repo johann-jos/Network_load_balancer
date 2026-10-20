@@ -1,7 +1,22 @@
-export type ServerStatus = 'ONLINE' | 'OFFLINE' | 'DEGRADED';
+export type ServerStatus = 'ONLINE' | 'DRAINING' | 'OFFLINE';
 export type AlgorithmType = 'ROUND_ROBIN' | 'LEAST_CONNECTIONS' | 'WEIGHTED_ROUND_ROBIN';
-export type ProtocolType = 'TCP' | 'UDP';
-export type RequestStatus = 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'INTERRUPTED';
+export type ProtocolType = 'TCP';
+
+/** The visible chapters of one simulated TCP connection. */
+export type TcpPhase =
+  | 'SYN_SENT'
+  | 'ROUTING'
+  | 'SYN_ACK'
+  | 'ACK'
+  | 'ESTABLISHED'
+  | 'FIN_WAIT'
+  | 'TIME_WAIT'
+  | 'RST'
+  | 'CLOSED'
+  | 'FAILED';
+
+export type RequestStatus = 'CONNECTING' | 'ESTABLISHED' | 'CLOSING' | 'COMPLETED' | 'FAILED' | 'RESET';
+export type TcpFlag = 'SYN' | 'SYN-ACK' | 'ACK' | 'DATA' | 'FIN' | 'RST';
 
 export interface Server {
   id: string;
@@ -11,19 +26,22 @@ export interface Server {
   protocol: ProtocolType;
   status: ServerStatus;
   activeConnections: number;
-  totalRequestsHandled: number;
-  failedRequests: number;
-  cpuLoad: number; // 0 - 100%
-  responseTimeMs: number; // ms
-  weight: number; // for Weighted Round Robin
-  maxCapacity: number; // max concurrent connections before degradation
+  halfOpenConnections: number;
+  timeWaitConnections: number;
+  totalConnectionsHandled: number;
+  failedConnections: number;
+  cpuLoad: number;
+  responseTimeMs: number;
+  weight: number;
+  maxCapacity: number;
+  zone: string;
 }
 
 export interface Client {
   id: string;
   name: string;
   ip: string;
-  activeRequests: number;
+  activeConnections: number;
 }
 
 export interface NetworkRequest {
@@ -35,22 +53,42 @@ export interface NetworkRequest {
   destinationPort: number;
   protocol: ProtocolType;
   timestamp: string;
-  startTime: number; // unix ms
+  startTime: number;
+  phaseStartedAt: number;
   durationMs: number;
+  handshakeMs: number;
+  connectionDurationMs: number;
   selectedServerId: string | null;
   selectedServerIp: string | null;
+  phase: TcpPhase;
+  currentFlag: TcpFlag;
   status: RequestStatus;
+  sequenceNumber: number;
+  acknowledgementNumber: number;
   responseTimeMs: number;
   failureReason?: string;
 }
 
-export interface SimulationMetrics {
-  totalRequests: number;
-  successfulRequests: number;
-  failedRequests: number;
+export interface RouteDecision {
+  requestId: number;
+  algorithm: AlgorithmType;
+  candidateServerIds: string[];
+  selectedServerId: string | null;
+  rationale: string;
+  scores: Record<string, number>;
+}
+
+export interface TcpMetrics {
+  totalConnections: number;
+  establishedConnections: number;
+  closedConnections: number;
+  resetConnections: number;
   activeConnections: number;
-  averageResponseTimeMs: number;
-  currentTrafficRateRps: number;
+  synBacklog: number;
+  timeWaitConnections: number;
+  observedRps: number;
+  averageHandshakeMs: number;
+  averageConnectionDurationMs: number;
 }
 
 export interface LogEntry {
@@ -58,16 +96,20 @@ export interface LogEntry {
   timestamp: string;
   type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'SYSTEM';
   message: string;
+  phase?: TcpPhase;
+  flag?: TcpFlag;
   requestId?: number;
   serverId?: string;
 }
 
 export interface TimeSeriesDataPoint {
   timestamp: string;
-  time: number; // seconds elapsed
-  totalRps: number;
-  avgResponseTime: number;
-  [key: string]: number | string; // dynamic server load keys e.g. "Server 1 Load", "Server 2 Load"
+  time: number;
+  activeConnections: number;
+  synBacklog: number;
+  timeWaitConnections: number;
+  averageLatency: number;
+  [key: string]: number | string;
 }
 
 export interface AlgorithmBenchmarkResult {
@@ -80,4 +122,14 @@ export interface AlgorithmBenchmarkResult {
   averageServerLoadPercent: number;
   requestsPerServer: Record<string, number>;
   serverLoads: Record<string, number>;
+  targetDistribution: string;
+}
+
+export interface DemoModeState {
+  active: boolean;
+  currentStep: number;
+  totalSteps: number;
+  stepTitle: string;
+  description: string;
+  isPaused: boolean;
 }

@@ -22,9 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'LoadBalancer Simulator | 3rd-Year CN Mini-Project',
+  title: 'TCP/04 | Connection Lab',
   description:
-    'An educational computer networks simulator demonstrating Layer 4 / Layer 7 load balancing algorithms, live traffic routing, server failover, and metrics visualization.',
+    'A visual TCP load-balancing laboratory for exploring handshakes, routing decisions, failover, queues, and connection teardown.',
 };
 
 export default function RootLayout({
@@ -34,13 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
-        />
-      </head>
-      <body className="bg-[#f4f6fb] text-[#131b2e] min-h-screen font-sans antialiased selection:bg-[#006194] selection:text-white">
+      <body className="min-h-screen bg-[#071019] font-sans text-[#e8f1f5] antialiased selection:bg-[#8ee8ff] selection:text-[#071019]">
         <SimulationProvider>{children}</SimulationProvider>
       </body>
     </html>

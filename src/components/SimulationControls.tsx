@@ -1,16 +1,21 @@
 'use client';
 
 import React from 'react';
+import { Pause, Play, Radio, Send, SlidersHorizontal, Sparkles, Square, Terminal } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import { AlgorithmType, ProtocolType } from '../types/simulation';
-import { Send, Zap, Play, Square, Settings2, Sliders, ShieldCheck } from 'lucide-react';
+import { ALGORITHM_LABELS } from '../lib/simulationEngine';
+import { AlgorithmType } from '../types/simulation';
+
+const algorithmInfo: { id: AlgorithmType; short: string; description: string }[] = [
+  { id: 'ROUND_ROBIN', short: 'RR', description: 'next eligible socket in sequence' },
+  { id: 'LEAST_CONNECTIONS', short: 'LC', description: 'lowest active connection count' },
+  { id: 'WEIGHTED_ROUND_ROBIN', short: 'WRR', description: 'smooth 5 : 3 : 2 capacity ratio' },
+];
 
 export const SimulationControls: React.FC = () => {
   const {
     algorithm,
-    protocol,
     setAlgorithm,
-    setProtocol,
     sendSingleRequest,
     sendBatchRequests,
     isContinuousTraffic,
@@ -18,193 +23,114 @@ export const SimulationControls: React.FC = () => {
     setTrafficRate,
     startContinuousTraffic,
     stopContinuousTraffic,
+    demoState,
+    toggleDemoPlayback,
+    nextDemoStep,
+    startDemoMode,
   } = useSimulation();
 
   return (
-    <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center space-x-2.5 border-b border-slate-800/80 pb-3">
-        <div className="p-1.5 bg-cyan-950/80 border border-cyan-500/40 rounded-lg text-cyan-400">
-          <Settings2 className="w-4 h-4" />
-        </div>
+    <section className="lab-panel p-5" aria-labelledby="control-title">
+      <div className="flex flex-col gap-4 border-b border-[#b1ddea]/15 pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
-            Control Center
-          </h2>
-          <p className="text-[11px] text-slate-400">Traffic Generation & Routing Policies</p>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]">
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Operator controls
+          </div>
+          <h2 id="control-title" className="mt-2 font-headline text-xl tracking-[-0.04em] text-[#e8f1f5]">Open pressure on the cluster</h2>
+          <p className="mt-1 text-xs text-[#79939e]">Every click opens a TCP socket. The story stage follows its flags.</p>
+        </div>
+        <div className="flex items-center gap-2 border border-[#73e2ad]/20 bg-[#0a211d] px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#73e2ad]">
+          <Radio className="h-3 w-3" /> TCP only
         </div>
       </div>
 
-      {/* Algorithm Selection */}
-      <div className="space-y-2.5">
-        <label className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block font-mono">
-          1. Load Balancing Algorithm
-        </label>
-        <div className="grid grid-cols-1 gap-2">
-          {[
-            {
-              id: 'ROUND_ROBIN' as AlgorithmType,
-              name: 'Round Robin (RR)',
-              desc: 'Sequential cyclic request distribution',
-              color: 'border-cyan-500/60 bg-cyan-950/30 text-cyan-300',
-            },
-            {
-              id: 'LEAST_CONNECTIONS' as AlgorithmType,
-              name: 'Least Connections (LC)',
-              desc: 'Dynamic routing to server with lowest conns',
-              color: 'border-emerald-500/60 bg-emerald-950/30 text-emerald-300',
-            },
-            {
-              id: 'WEIGHTED_ROUND_ROBIN' as AlgorithmType,
-              name: 'Weighted Round Robin (WRR)',
-              desc: 'Proportional routing based on server weights',
-              color: 'border-purple-500/60 bg-purple-950/30 text-purple-300',
-            },
-          ].map((algo) => {
-            const isSelected = algorithm === algo.id;
-            return (
-              <button
-                key={algo.id}
-                onClick={() => setAlgorithm(algo.id)}
-                className={`w-full text-left p-3 rounded-xl border transition-all relative ${
-                  isSelected
-                    ? `${algo.color} shadow-lg shadow-black/40`
-                    : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs font-mono">{algo.name}</span>
-                  {isSelected && (
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">{algo.desc}</p>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_1.45fr_1fr]">
+        <div>
+          <label className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#6c8792]">01 / routing policy</label>
+          <div className="mt-2 grid gap-2">
+            {algorithmInfo.map((item) => {
+              const selected = algorithm === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setAlgorithm(item.id)}
+                  aria-pressed={selected}
+                  className={`group flex items-center gap-3 border px-3 py-2.5 text-left transition active:translate-y-px ${selected ? 'border-[#8ee8ff]/65 bg-[#10313d] text-[#e8f1f5]' : 'border-[#b1ddea]/12 bg-[#0a151e] text-[#88a0aa] hover:border-[#8ee8ff]/35 hover:text-[#d7e8ed]'}`}
+                >
+                  <span className={`flex h-7 w-8 items-center justify-center font-mono text-[10px] font-bold ${selected ? 'bg-[#8ee8ff] text-[#071019]' : 'bg-[#10232c] text-[#6f9eaa]'}`}>{item.short}</span>
+                  <span>
+                    <span className="block text-xs font-semibold">{ALGORITHM_LABELS[item.id]}</span>
+                    <span className="mt-0.5 block text-[10px] text-[#6d8792]">{item.description}</span>
+                  </span>
+                  {selected && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#8ee8ff] shadow-[0_0_0_4px_rgba(142,232,255,0.1)]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#6c8792]">02 / inject new flows</label>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+            <button onClick={() => sendSingleRequest()} className="flex min-h-[70px] flex-col items-start justify-between border border-[#8ee8ff]/35 bg-[#0f303d] p-3 text-left text-[#b9f3ff] transition hover:-translate-y-0.5 hover:bg-[#154658] active:translate-y-px">
+              <Send className="h-4 w-4" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em]">open one</span>
+            </button>
+            <button onClick={() => sendBatchRequests(10)} className="flex min-h-[70px] flex-col items-start justify-between border border-[#b1ddea]/14 bg-[#0a151e] p-3 text-left text-[#d5e5ea] transition hover:-translate-y-0.5 hover:border-[#8ee8ff]/35 active:translate-y-px">
+              <span className="font-mono text-2xl text-[#8ee8ff]">10</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#78929d]">burst</span>
+            </button>
+            <button onClick={() => sendBatchRequests(50)} className="flex min-h-[70px] flex-col items-start justify-between border border-[#b1ddea]/14 bg-[#0a151e] p-3 text-left text-[#d5e5ea] transition hover:-translate-y-0.5 hover:border-[#8ee8ff]/35 active:translate-y-px">
+              <span className="font-mono text-2xl text-[#8ee8ff]">50</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#78929d]">burst</span>
+            </button>
+            <button onClick={() => sendBatchRequests(100)} className="flex min-h-[70px] flex-col items-start justify-between border border-[#f5c76f]/35 bg-[#251e11] p-3 text-left text-[#f7d99a] transition hover:-translate-y-0.5 hover:bg-[#332715] active:translate-y-px">
+              <span className="font-mono text-2xl text-[#f5c76f]">100</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#b99a5e]">stress burst</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#6c8792]">03 / sustained pressure</label>
+          <div className="mt-2 grid grid-cols-4 gap-1.5">
+            {[1, 5, 10, 20].map((rate) => (
+              <button key={rate} onClick={() => setTrafficRate(rate)} aria-pressed={trafficRateRps === rate} className={`border py-2 font-mono text-[10px] transition ${trafficRateRps === rate ? 'border-[#8ee8ff] bg-[#8ee8ff] text-[#071019]' : 'border-[#b1ddea]/12 bg-[#0a151e] text-[#78929d] hover:border-[#8ee8ff]/35'}`}>
+                {rate}/s
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Protocol Selection */}
-      <div className="space-y-2.5">
-        <label className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block font-mono">
-          2. Transport Protocol
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { id: 'TCP' as ProtocolType, label: 'TCP', sub: 'Connection-Oriented' },
-            { id: 'UDP' as ProtocolType, label: 'UDP', sub: 'Connectionless' },
-          ].map((proto) => {
-            const isSelected = protocol === proto.id;
-            return (
-              <button
-                key={proto.id}
-                onClick={() => setProtocol(proto.id)}
-                className={`p-2.5 rounded-xl border text-center transition-all ${
-                  isSelected
-                    ? 'bg-purple-950/50 border-purple-500 text-purple-300 font-bold shadow-md'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <div className="text-xs font-bold font-mono">{proto.label}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">{proto.sub}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Manual Request Dispatcher */}
-      <div className="space-y-2.5 pt-3 border-t border-slate-800/80">
-        <label className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block font-mono">
-          3. Manual Datagram Dispatcher
-        </label>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => sendSingleRequest()}
-            className="flex items-center justify-center space-x-1.5 p-2.5 bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 hover:border-cyan-500/50 rounded-xl text-xs font-bold transition-all font-mono"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Send 1 Req</span>
-          </button>
-
-          <button
-            onClick={() => sendBatchRequests(10)}
-            className="flex items-center justify-center space-x-1.5 p-2.5 bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 hover:border-cyan-500/50 rounded-xl text-xs font-bold transition-all font-mono"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Send 10 Req</span>
-          </button>
-
-          <button
-            onClick={() => sendBatchRequests(50)}
-            className="flex items-center justify-center space-x-1.5 p-2.5 bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 hover:border-cyan-500/50 rounded-xl text-xs font-bold transition-all font-mono"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Send 50 Req</span>
-          </button>
-
-          <button
-            onClick={() => sendBatchRequests(100)}
-            className="flex items-center justify-center space-x-1.5 p-2.5 bg-gradient-to-r from-cyan-950 to-blue-950 hover:from-cyan-900 hover:to-blue-900 text-cyan-300 border border-cyan-500/50 rounded-xl text-xs font-bold transition-all shadow-md font-mono"
-          >
-            <Zap className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span>Send 100 Req</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Continuous Traffic Generator */}
-      <div className="space-y-3 pt-3 border-t border-slate-800/80">
-        <div className="flex items-center justify-between">
-          <label className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block font-mono">
-            4. Continuous Workload Engine
-          </label>
-          {isContinuousTraffic && (
-            <span className="text-[10px] font-mono text-emerald-400 animate-pulse flex items-center space-x-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>LIVE TRAFFIC</span>
-            </span>
+            ))}
+          </div>
+          {isContinuousTraffic ? (
+            <button onClick={stopContinuousTraffic} className="mt-2 flex w-full items-center justify-center gap-2 border border-[#ff7d79]/45 bg-[#32191b] py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[#ffaaa0] transition hover:bg-[#482023]">
+              <Square className="h-3.5 w-3.5 fill-current" /> stop sustained traffic
+            </button>
+          ) : (
+            <button onClick={() => startContinuousTraffic(trafficRateRps)} className="mt-2 flex w-full items-center justify-center gap-2 border border-[#73e2ad]/35 bg-[#0d2d25] py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[#9bf0c4] transition hover:bg-[#123f32]">
+              <Play className="h-3.5 w-3.5 fill-current" /> start at {trafficRateRps}/s
+            </button>
           )}
         </div>
-
-        {/* Rate selection chips */}
-        <div className="grid grid-cols-4 gap-1.5">
-          {[1, 5, 10, 20].map((rate) => (
-            <button
-              key={rate}
-              onClick={() => setTrafficRate(rate)}
-              className={`py-1.5 text-xs font-mono rounded-lg border transition-all ${
-                trafficRateRps === rate
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-md'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-              }`}
-            >
-              {rate} rps
-            </button>
-          ))}
-        </div>
-
-        {/* Start / Stop Toggle Button */}
-        {isContinuousTraffic ? (
-          <button
-            onClick={stopContinuousTraffic}
-            className="w-full flex items-center justify-center space-x-2 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-red-950/60 font-mono"
-          >
-            <Square className="w-4 h-4 fill-current" />
-            <span>STOP TRAFFIC GENERATOR</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => startContinuousTraffic(trafficRateRps)}
-            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-950/60 font-mono"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>START TRAFFIC ({trafficRateRps} RPS)</span>
-          </button>
-        )}
       </div>
-    </div>
+
+      <div className="mt-5 flex flex-col gap-3 border-t border-[#b1ddea]/12 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-[11px] text-[#78929d]">
+          <Terminal className="h-3.5 w-3.5 text-[#8ee8ff]" />
+          {demoState.active ? `Chapter ${demoState.currentStep}/${demoState.totalSteps}: ${demoState.stepTitle}` : 'Tip: take a server offline while flows are open to watch drain behavior.'}
+        </div>
+        <div className="flex items-center gap-2">
+          {demoState.active ? (
+            <>
+              <button onClick={toggleDemoPlayback} className="inline-flex items-center gap-2 border border-[#b1ddea]/18 bg-[#0a151e] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#b6cbd2] transition hover:border-[#8ee8ff]/35">
+                {demoState.isPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}{demoState.isPaused ? 'resume' : 'pause'}
+              </button>
+              <button onClick={nextDemoStep} className="inline-flex items-center gap-2 border border-[#8ee8ff]/30 bg-[#0f303d] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#b9f3ff] transition hover:bg-[#154658]">next chapter</button>
+            </>
+          ) : (
+            <button onClick={startDemoMode} className="inline-flex items-center gap-2 border border-[#8ee8ff]/30 bg-[#0f303d] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[#b9f3ff] transition hover:bg-[#154658]"><Sparkles className="h-3 w-3" /> run guided story</button>
+          )}
+        </div>
+      </div>
+    </section>
   );
 };

@@ -1,87 +1,68 @@
 'use client';
 
 import React from 'react';
-import { Header } from '../components/Header';
-import { SimulationControls } from '../components/SimulationControls';
-import { NetworkTopology } from '../components/NetworkTopology';
-import { ServerCard } from '../components/ServerCard';
-import { MetricsDashboard } from '../components/MetricsDashboard';
-import { EventLogPanel } from '../components/EventLogPanel';
-import { AlgorithmExplanation } from '../components/AlgorithmExplanation';
+import { ArrowDown, Server as ServerIcon } from 'lucide-react';
 import { AlgorithmComparison } from '../components/AlgorithmComparison';
-import { NetworkingConcepts } from '../components/NetworkingConcepts';
+import { AlgorithmExplanation } from '../components/AlgorithmExplanation';
+import { ConnectionInspector } from '../components/ConnectionInspector';
 import { DemoBanner } from '../components/DemoBanner';
+import { EventLogPanel } from '../components/EventLogPanel';
+import { Header } from '../components/Header';
+import { MetricsDashboard } from '../components/MetricsDashboard';
+import { NetworkTopology } from '../components/NetworkTopology';
+import { NetworkingConcepts } from '../components/NetworkingConcepts';
+import { ServerCard } from '../components/ServerCard';
+import { SimulationControls } from '../components/SimulationControls';
+import { StoryIntro } from '../components/StoryIntro';
+import { TcpTimeline } from '../components/TcpTimeline';
 import { useSimulation } from '../context/SimulationContext';
 
 export default function Home() {
   const { servers } = useSimulation();
 
   return (
-    <div className="min-h-screen flex flex-col bg-network-bg">
-      {/* Header */}
+    <div id="top" className="min-h-screen bg-[#071019]">
       <Header />
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-[1700px] w-full mx-auto p-4 md:p-6 space-y-6">
-        {/* Presentation Demo Mode Banner */}
+      <main className="mx-auto max-w-[1800px] space-y-6 px-4 py-6 sm:px-6 lg:space-y-8 lg:py-10">
         <DemoBanner />
 
-        {/* TOP SECTION: Controls | Interactive Topology Canvas | Server Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Simulation Controls (3 cols) */}
-          <div className="lg:col-span-3">
-            <SimulationControls />
-          </div>
+        <section id="story" className="grid gap-6 lg:grid-cols-[0.72fr_1.85fr_0.78fr] lg:gap-7">
+          <StoryIntro />
+          <NetworkTopology />
+          <ConnectionInspector />
+        </section>
 
-          {/* Center Column: Network Topology Visualization (6 cols) */}
-          <div className="lg:col-span-6">
-            <NetworkTopology />
-          </div>
+        <div className="flex items-center gap-3 px-1 text-[10px] font-mono uppercase tracking-[0.18em] text-[#54727e]"><span className="h-px flex-1 bg-[#b1ddea]/12" /><ArrowDown className="h-3.5 w-3.5 text-[#8ee8ff]" /><span>now slow it down</span><span className="h-px flex-1 bg-[#b1ddea]/12" /></div>
+        <TcpTimeline />
+        <SimulationControls />
 
-          {/* Right Column: Server Cards (3 cols) */}
-          <div className="lg:col-span-3 space-y-4">
-            <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wide px-1">
-              Backend Server Nodes Pool
-            </h2>
-            <div className="space-y-3">
-              {servers.map((server) => (
-                <ServerCard key={server.id} server={server} />
-              ))}
+        <section aria-labelledby="pool-title">
+          <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><ServerIcon className="h-3.5 w-3.5" /> Listener pool</div>
+              <h2 id="pool-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">Three listeners. One decision at a time.</h2>
+              <p className="mt-1 text-xs text-[#8099a4]">Stop intake, watch connections drain, then recover a target into the eligible pool.</p>
             </div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-[#62808b]">TCP :8080 / simulated health</span>
           </div>
-        </div>
-
-        {/* METRICS & RECHARTS DASHBOARD */}
-        <section className="pt-2">
-          <MetricsDashboard />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {servers.map((server) => <ServerCard key={server.id} server={server} />)}
+          </div>
         </section>
 
-        {/* LOGS & ALGORITHM THEORY */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-6">
-            <EventLogPanel />
-          </div>
-          <div className="lg:col-span-6">
-            <AlgorithmExplanation />
-          </div>
-        </div>
+        <MetricsDashboard />
 
-        {/* ALGORITHM COMPARISON BENCHMARK */}
-        <section>
-          <AlgorithmComparison />
+        <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <EventLogPanel />
+          <AlgorithmExplanation />
         </section>
 
-        {/* EDUCATIONAL NETWORKING CONCEPTS (VIVA GUIDE) */}
-        <section className="pb-8">
-          <NetworkingConcepts />
-        </section>
+        <AlgorithmComparison />
+        <NetworkingConcepts />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-network-border bg-network-card py-4 text-center text-xs text-slate-400 font-mono">
-        <p>
-          Computer Networks (CN) Mini-Project &bull; &ldquo;Network Load Balancing &amp; Server Selection Simulator&rdquo; &bull; Department of Computer Science &amp; Engineering
-        </p>
+      <footer className="border-t border-[#b1ddea]/12 bg-[#050c12] px-4 py-6 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-[#587480] sm:px-6">
+        TCP/04 connection lab · educational simulator · built for Computer Networks study and demonstration
       </footer>
     </div>
   );

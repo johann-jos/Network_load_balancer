@@ -1,238 +1,77 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, CircleDot, FileSearch, Search, Terminal, Trash2, X } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import { NetworkRequest, LogEntry } from '../types/simulation';
-import { Terminal, List, Trash2, Eye, X, Network, Server, ArrowRight, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { NetworkRequest } from '../types/simulation';
 
 export const EventLogPanel: React.FC = () => {
-  const { eventLogs, requestHistory, clearLogs, selectedRequest, setSelectedRequest } = useSimulation();
-  const [activeTab, setActiveTab] = useState<'EVENTS' | 'REQUESTS'>('EVENTS');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-
-  const filteredLogs = eventLogs.filter((log) =>
-    log.message.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredRequests = requestHistory.filter(
-    (req) =>
-      req.requestId.toString().includes(searchTerm) ||
-      req.clientIp.includes(searchTerm) ||
-      (req.selectedServerIp && req.selectedServerIp.includes(searchTerm))
-  );
+  const { eventLogs, requestHistory, activeRequests, clearLogs, selectedRequest, setSelectedRequest } = useSimulation();
+  const [tab, setTab] = useState<'EVENTS' | 'FLOWS'>('EVENTS');
+  const [searchTerm, setSearchTerm] = useState('');
+  const needle = searchTerm.toLowerCase();
+  const filteredLogs = useMemo(() => eventLogs.filter((entry) => entry.message.toLowerCase().includes(needle)), [eventLogs, needle]);
+  const allFlows = [...activeRequests, ...requestHistory];
+  const filteredFlows = useMemo(() => allFlows.filter((flow) => `${flow.requestId} ${flow.clientIp} ${flow.selectedServerIp ?? ''} ${flow.currentFlag} ${flow.phase}`.toLowerCase().includes(needle)), [allFlows, needle]);
 
   return (
-    <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-2xl flex flex-col h-full">
-      {/* Header with Tabs */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-800/80 pb-3 mb-3 gap-2">
-        <div className="flex items-center space-x-3">
-          <div className="p-1.5 bg-cyan-950/80 border border-cyan-500/40 rounded-lg text-cyan-400">
-            <Terminal className="w-4 h-4" />
-          </div>
-
-          <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800 text-xs">
-            <button
-              onClick={() => setActiveTab('EVENTS')}
-              className={`px-3 py-1 rounded-lg font-bold font-mono transition-all ${
-                activeTab === 'EVENTS'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              System Events ({eventLogs.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('REQUESTS')}
-              className={`px-3 py-1 rounded-lg font-bold font-mono transition-all ${
-                activeTab === 'REQUESTS'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Datagram Log ({requestHistory.length})
-            </button>
-          </div>
+    <section id="recorder" className="lab-panel flex min-h-[460px] flex-col p-5" aria-labelledby="recorder-title">
+      <div className="flex flex-col gap-4 border-b border-[#b1ddea]/15 pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><Terminal className="h-3.5 w-3.5" /> Flight recorder</div>
+          <h2 id="recorder-title" className="mt-2 font-headline text-xl tracking-[-0.04em] text-[#e8f1f5]">Every flag has a timestamp.</h2>
         </div>
-
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            placeholder="Search logs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-36 md:w-48 font-mono"
-          />
-          <button
-            onClick={clearLogs}
-            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors border border-slate-800"
-            title="Clear Log"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2">
+          <label className="relative block">
+            <span className="sr-only">Search the TCP flight recorder</span>
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[#597682]" />
+            <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="search flow / flag" className="w-40 border border-[#b1ddea]/15 bg-[#071019] py-2 pl-8 pr-2 font-mono text-[10px] text-[#dbe9ee] placeholder:text-[#526e79] focus:border-[#8ee8ff]/55 focus:outline-none sm:w-48" />
+          </label>
+          <button onClick={clearLogs} title="Clear recorder" className="border border-[#b1ddea]/15 bg-[#0a151e] p-2 text-[#78929d] transition hover:border-[#ff7d79]/35 hover:text-[#ffaaa0]"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </div>
 
-      {/* Log Terminal Window */}
-      <div className="flex-1 bg-slate-950/95 rounded-xl border border-slate-800/90 overflow-y-auto max-h-[340px] font-mono text-xs p-3.5 space-y-1.5 shadow-inner">
-        {activeTab === 'EVENTS' ? (
-          filteredLogs.length > 0 ? (
-            filteredLogs.map((log) => (
-              <div key={log.id} className="flex items-start space-x-2 leading-relaxed border-b border-slate-900/60 pb-1">
-                <span className="text-slate-600 select-none text-[11px]">[{log.timestamp}]</span>
-                <span
-                  className={
-                    log.type === 'ERROR'
-                      ? 'text-red-400 font-bold glow-text-cyan'
-                      : log.type === 'WARNING'
-                      ? 'text-amber-400 font-semibold'
-                      : log.type === 'SUCCESS'
-                      ? 'text-emerald-400 font-semibold'
-                      : 'text-cyan-300'
-                  }
-                >
-                  {log.message}
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="text-slate-500 text-center py-8">No system event logs recorded.</div>
-          )
-        ) : filteredRequests.length > 0 ? (
-          <div className="space-y-1.5">
-            {filteredRequests.map((req) => (
-              <div
-                key={req.id}
-                onClick={() => setSelectedRequest(req)}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800/80 cursor-pointer transition-all hover:border-cyan-500/40"
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="text-slate-400 font-bold">#{req.requestId}</span>
-                  <span className="text-purple-300 font-bold px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-800/50 text-[10px]">
-                    {req.protocol}
-                  </span>
-                  <span className="text-cyan-300">{req.clientIp}:{req.sourcePort}</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-emerald-400 font-bold">{req.selectedServerIp || 'None'}</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <span className="text-amber-300 font-bold">{req.responseTimeMs} ms</span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      req.status === 'COMPLETED'
-                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50'
-                        : 'bg-red-950 text-red-400 border border-red-800/50'
-                    }`}
-                  >
-                    {req.status}
-                  </span>
-                  <Eye className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-slate-500 text-center py-8">No datagram logs generated yet.</div>
-        )}
+      <div className="mt-4 flex items-center gap-1 border-b border-[#b1ddea]/12 pb-2">
+        <button onClick={() => setTab('EVENTS')} aria-pressed={tab === 'EVENTS'} className={`px-3 py-2 font-mono text-[10px] uppercase tracking-[0.13em] transition ${tab === 'EVENTS' ? 'bg-[#8ee8ff] text-[#071019]' : 'text-[#78929d] hover:text-[#dbe9ee]'}`}>system events · {eventLogs.length}</button>
+        <button onClick={() => setTab('FLOWS')} aria-pressed={tab === 'FLOWS'} className={`px-3 py-2 font-mono text-[10px] uppercase tracking-[0.13em] transition ${tab === 'FLOWS' ? 'bg-[#8ee8ff] text-[#071019]' : 'text-[#78929d] hover:text-[#dbe9ee]'}`}>TCP flows · {allFlows.length}</button>
       </div>
 
-      {/* Detailed Request Modal Inspector */}
+      <div className="quiet-scrollbar mt-3 max-h-[355px] flex-1 overflow-y-auto bg-[#050c12] p-2">
+        {tab === 'EVENTS' ? (
+          filteredLogs.length ? filteredLogs.map((entry) => (
+            <div key={entry.id} className="flex gap-3 border-b border-[#b1ddea]/8 px-2 py-2.5 font-mono text-[10px] leading-5 last:border-0">
+              <span className="shrink-0 text-[#506d78]">{entry.timestamp}</span>
+              <span className={entry.type === 'ERROR' ? 'text-[#ff7d79]' : entry.type === 'WARNING' ? 'text-[#f5c76f]' : entry.type === 'SUCCESS' ? 'text-[#73e2ad]' : 'text-[#9eb8c2]'}>{entry.message}</span>
+              {entry.flag && <span className="ml-auto shrink-0 border border-[#b1ddea]/15 px-1.5 py-0.5 text-[9px] text-[#8ee8ff]">{entry.flag}</span>}
+            </div>
+          )) : <EmptyState label="No matching events." />
+        ) : filteredFlows.length ? filteredFlows.map((flow) => <FlowRow key={flow.id} flow={flow} onSelect={setSelectedRequest} />) : <EmptyState label="No matching TCP flows." />}
+      </div>
+
       {selectedRequest && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-800">
-                  <Network className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white font-mono">
-                    Datagram Inspector #{selectedRequest.requestId}
-                  </h3>
-                  <p className="text-xs text-slate-400">Layer 4 / Layer 7 Packet Details</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 font-mono text-xs">
-              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
-                <div className="text-slate-400 font-bold uppercase text-[10px] border-b border-slate-800 pb-1">
-                  1. Source Socket Header
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Client Source IP:</span>
-                  <span className="text-cyan-300 font-bold">{selectedRequest.clientIp}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Ephemeral Source Port:</span>
-                  <span className="text-white">{selectedRequest.sourcePort}</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
-                <div className="text-slate-400 font-bold uppercase text-[10px] border-b border-slate-800 pb-1">
-                  2. Load Balancer VIP Target
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">VIP Destination IP:</span>
-                  <span className="text-cyan-300 font-bold">{selectedRequest.destinationIp}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Target VIP Port:</span>
-                  <span className="text-white">{selectedRequest.destinationPort} (HTTPS)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Transport Protocol:</span>
-                  <span className="text-purple-300 font-bold">{selectedRequest.protocol}</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
-                <div className="text-slate-400 font-bold uppercase text-[10px] border-b border-slate-800 pb-1">
-                  3. Assigned Backend Socket
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Selected Server Node:</span>
-                  <span className="text-emerald-400 font-bold">
-                    {selectedRequest.selectedServerIp || 'None (503 Service Unavailable)'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Execution Status:</span>
-                  <span
-                    className={
-                      selectedRequest.status === 'COMPLETED' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'
-                    }
-                  >
-                    {selectedRequest.status}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Round Trip Latency:</span>
-                  <span className="text-amber-300 font-bold">{selectedRequest.responseTimeMs} ms</span>
-                </div>
-                {selectedRequest.failureReason && (
-                  <div className="text-red-400 pt-1 border-t border-slate-800">
-                    Reason: {selectedRequest.failureReason}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setSelectedRequest(null)}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold font-mono transition-colors"
-            >
-              Close Inspector
-            </button>
-          </div>
+        <div className="mt-3 flex items-center justify-between border border-[#8ee8ff]/20 bg-[#091722] px-3 py-2 text-[10px] text-[#8ba5af]">
+          <span className="flex items-center gap-2"><FileSearch className="h-3.5 w-3.5 text-[#8ee8ff]" /> Inspecting flow #{selectedRequest.requestId} in the trace panel.</span>
+          <button onClick={() => setSelectedRequest(null)} className="text-[#6f8994] hover:text-[#e8f1f5]" aria-label="Close flow selection"><X className="h-3.5 w-3.5" /></button>
         </div>
       )}
-    </div>
+    </section>
   );
 };
+
+const FlowRow = ({ flow, onSelect }: { flow: NetworkRequest; onSelect: (flow: NetworkRequest) => void }) => (
+  <button onClick={() => onSelect(flow)} className="group flex w-full items-center justify-between gap-3 border-b border-[#b1ddea]/8 px-2 py-3 text-left transition hover:bg-[#0b202b] last:border-0">
+    <span className="flex min-w-0 items-center gap-2 font-mono text-[10px]">
+      <span className="text-[#8ee8ff]">#{flow.requestId}</span>
+      <span className="border border-[#8ee8ff]/20 bg-[#0b202b] px-1.5 py-0.5 text-[#8ee8ff]">{flow.currentFlag}</span>
+      <span className="truncate text-[#76919c]">{flow.clientIp}:{flow.sourcePort}</span>
+      <ArrowRight className="h-3 w-3 shrink-0 text-[#476572]" />
+      <span className="hidden truncate text-[#73e2ad] sm:inline">{flow.selectedServerIp ?? 'no target'}</span>
+    </span>
+    <span className="flex shrink-0 items-center gap-2 font-mono text-[9px] uppercase tracking-[0.1em]">
+      <span className={flow.status === 'COMPLETED' ? 'text-[#73e2ad]' : flow.status === 'FAILED' ? 'text-[#ff7d79]' : 'text-[#f5c76f]'}>{flow.phase.replace('_', ' ')}</span>
+      <CircleDot className="h-3 w-3 text-[#597682] transition group-hover:text-[#8ee8ff]" />
+    </span>
+  </button>
+);
+
+const EmptyState = ({ label }: { label: string }) => <div className="flex h-32 items-center justify-center font-mono text-xs text-[#5c7884]">{label}</div>;

@@ -1,120 +1,73 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Activity, BookOpen, Play, RotateCcw, Waypoints } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import { Play, RotateCcw, Activity, Cpu, Radio, Zap } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const {
-    servers,
-    requestHistory,
-    activeRequests,
-    demoState,
-    startDemoMode,
-    resetSimulation,
-    isContinuousTraffic,
-  } = useSimulation();
-
-  const [timeStr, setTimeStr] = useState<string>('');
+  const { servers, demoState, startDemoMode, resetSimulation, tcpMetrics } = useSimulation();
+  const [time, setTime] = useState('');
+  const onlineCount = servers.filter((server) => server.status === 'ONLINE').length;
+  const drainingCount = servers.filter((server) => server.status === 'DRAINING').length;
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeStr(new Date().toTimeString().split(' ')[0]);
-    }, 1000);
-    setTimeStr(new Date().toTimeString().split(' ')[0]);
-    return () => clearInterval(timer);
+    const update = () => setTime(new Date().toTimeString().split(' ')[0]);
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  const totalRequests = requestHistory.length + activeRequests.length;
-  const onlineCount = servers.filter((s) => s.status === 'ONLINE').length;
-  const totalSuccess = requestHistory.filter((r) => r.status === 'COMPLETED').length;
-  const totalFailed = requestHistory.filter((r) => r.status === 'FAILED').length;
-
   return (
-    <header className="glass-panel border-b border-slate-800/80 px-6 py-3.5 sticky top-0 z-40 backdrop-blur-xl shadow-2xl">
-      <div className="max-w-[1700px] mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        {/* Title and Logo Badge */}
-        <div className="flex items-center space-x-3.5">
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl blur opacity-60 group-hover:opacity-100 transition duration-300" />
-            <div className="relative p-2.5 bg-slate-950 rounded-xl text-cyan-400 border border-slate-800">
-              <Cpu className="w-6 h-6 animate-pulse" />
-            </div>
+    <header className="sticky top-0 z-20 border-b border-[#b1ddea]/15 bg-[#071019]/90 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-[1800px] flex-col gap-4 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:py-4">
+        <a href="#top" className="group flex items-center gap-3" aria-label="TCP connection lab home">
+          <div className="relative flex h-9 w-9 items-center justify-center border border-[#8ee8ff]/40 bg-[#0a202a] text-[#8ee8ff] transition-transform group-hover:-rotate-6">
+            <Waypoints className="h-5 w-5" />
+            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-[#73e2ad]" />
           </div>
-
           <div>
-            <div className="flex items-center space-x-2.5">
-              <h1 className="text-lg font-extrabold tracking-tight text-white font-mono bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                NETWORK LOAD BALANCER & SERVER SELECTION SIMULATOR
-              </h1>
-              <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-500/30 glow-text-cyan">
-                L4/L7 NOC V3.0
-              </span>
+            <div className="flex items-center gap-2">
+              <span className="font-headline text-lg font-semibold tracking-[-0.045em] text-[#e8f1f5]">TCP/04</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#6f8994]">connection lab</span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center space-x-2">
-              <span>Computer Networks Project &bull; Algorithmic Server Routing &amp; Failover Simulation</span>
-              <span className="text-slate-600">&bull;</span>
-              <span className="text-cyan-400 font-mono text-[11px]">{timeStr} UTC</span>
-            </p>
+            <p className="mt-0.5 text-[10px] text-[#78919c]">A visual field guide to Layer 4 routing</p>
           </div>
-        </div>
+        </a>
 
-        {/* Live Status Summary Badges */}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          {/* Cluster Health Pill */}
-          <div className="flex items-center space-x-2 bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
-            <Radio className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-400">Cluster Status:</span>
-            <span className="flex items-center font-semibold font-mono">
-              <span
-                className={`w-2 h-2 rounded-full mr-1.5 shadow-sm ${
-                  onlineCount === 3
-                    ? 'bg-emerald-400 shadow-emerald-500/50 animate-pulse'
-                    : onlineCount > 0
-                    ? 'bg-amber-400 shadow-amber-500/50 animate-pulse'
-                    : 'bg-red-500 shadow-red-500/50'
-                }`}
-              />
-              <span className={onlineCount === 3 ? 'text-emerald-400' : 'text-amber-400'}>
-                {onlineCount}/3 Online
-              </span>
-            </span>
+        <nav className="order-3 flex items-center gap-4 overflow-x-auto whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.14em] text-[#708b96] lg:order-none" aria-label="Page sections">
+          <a className="transition hover:text-[#8ee8ff]" href="#story">story</a>
+          <a className="transition hover:text-[#8ee8ff]" href="#metrics">telemetry</a>
+          <a className="transition hover:text-[#8ee8ff]" href="#recorder">recorder</a>
+          <a className="transition hover:text-[#8ee8ff]" href="#tcp-notes">research</a>
+        </nav>
+
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.12em]">
+          <div className="border border-[#b1ddea]/15 bg-[#0a151e] px-3 py-2 text-[#78919c]">
+            <span className={onlineCount === 3 ? 'text-[#73e2ad]' : onlineCount > 0 ? 'text-[#f5c76f]' : 'text-[#ff7d79]'}>{onlineCount}/3 listening</span>
+            {drainingCount > 0 && <span className="ml-2 text-[#f5c76f]">{drainingCount} draining</span>}
           </div>
-
-          {/* Traffic Pill */}
-          <div className="flex items-center space-x-2 bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
-            <Zap className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-slate-400">Total Requests:</span>
-            <span className="font-mono text-white font-bold">{totalRequests}</span>
-            <span className="text-slate-700">|</span>
-            <span className="text-emerald-400 font-mono font-medium">{totalSuccess} OK</span>
-            {totalFailed > 0 && <span className="text-red-400 font-mono font-medium">{totalFailed} ERR</span>}
+          <div className="border border-[#b1ddea]/15 bg-[#0a151e] px-3 py-2 text-[#78919c]">
+            <span className="text-[#8ee8ff]">{tcpMetrics.totalConnections}</span> flows · <span className="text-[#73e2ad]">{tcpMetrics.closedConnections}</span> closed
           </div>
-
-          {/* Action Buttons */}
+          <span className="hidden border-l border-[#b1ddea]/15 pl-3 text-[#5f7b86] xl:inline">{time} local</span>
           <button
             onClick={startDemoMode}
             disabled={demoState.active}
-            className={`relative group overflow-hidden flex items-center space-x-2 px-4 py-1.5 rounded-xl font-bold text-xs transition-all shadow-lg ${
-              demoState.active
-                ? 'bg-purple-950/60 text-purple-400 border border-purple-800/60 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white shadow-purple-950/50 border border-purple-400/30 hover:scale-[1.02]'
-            }`}
+            className="inline-flex items-center gap-2 border border-[#8ee8ff]/35 bg-[#0f3542] px-3 py-2 text-[#b9f3ff] transition hover:bg-[#16495a] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span className="font-mono tracking-wide">
-              {demoState.active ? 'DEMO RUNNING...' : 'PRESENTATION DEMO MODE'}
-            </span>
+            <Play className="h-3 w-3 fill-current" />
+            {demoState.active ? 'story running' : 'play story'}
           </button>
-
-          <button
-            onClick={resetSimulation}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl font-semibold text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 transition-all font-mono"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-            <span>RESET</span>
+          <button onClick={resetSimulation} className="inline-flex items-center gap-2 border border-[#b1ddea]/15 bg-[#0a151e] px-3 py-2 text-[#9bb0b9] transition hover:border-[#b1ddea]/35 hover:text-[#e8f1f5]">
+            <RotateCcw className="h-3 w-3" /> reset
           </button>
         </div>
+      </div>
+      <div className="mx-auto flex max-w-[1800px] items-center gap-4 border-t border-[#b1ddea]/10 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.15em] text-[#587480] sm:px-6">
+        <span className="flex items-center gap-2 text-[#8ee8ff]"><Activity className="h-3 w-3" /> transport control plane</span>
+        <span className="hidden h-3 w-px bg-[#b1ddea]/15 sm:block" />
+        <span className="hidden items-center gap-2 sm:flex"><BookOpen className="h-3 w-3" /> RFC-grounded teaching simulator</span>
+        <span className="ml-auto">TCP / 443 → TCP / 8080</span>
       </div>
     </header>
   );

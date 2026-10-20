@@ -1,7 +1,7 @@
 {
   "name": "network-load-balancer-simulator",
   "version": "1.0.0",
-  "description": "Network Load Balancing & Server Selection Simulator - 3rd Year CN Mini Project",
+  "description": "TCP connection life-cycle and load-balancing simulator for Computer Networks education",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,8 @@
   "keywords": [
     "load-balancer",
     "computer-networks",
+    "tcp",
+    "connection-lifecycle",
     "round-robin",
     "least-connections",
     "simulation"

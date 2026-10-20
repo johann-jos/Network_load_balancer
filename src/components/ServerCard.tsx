@@ -1,149 +1,81 @@
 'use client';
 
 import React from 'react';
-import { Server } from '../types/simulation';
+import { motion } from 'framer-motion';
+import { Activity, CircleDot, Gauge, Power, Scale, Server as ServerIcon } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import { Power, Activity, HardDrive, Clock, Scale, Cpu } from 'lucide-react';
+import { Server } from '../types/simulation';
 
-interface ServerCardProps {
-  server: Server;
-}
-
-export const ServerCard: React.FC<ServerCardProps> = ({ server }) => {
-  const { toggleServerStatus, updateServerWeight } = useSimulation();
-
-  const isOnline = server.status === 'ONLINE';
+export const ServerCard: React.FC<{ server: Server }> = ({ server }) => {
+  const { algorithm, toggleServerStatus, updateServerWeight } = useSimulation();
+  const online = server.status === 'ONLINE';
+  const draining = server.status === 'DRAINING';
+  const capacity = Math.min(100, Math.round((server.activeConnections / server.maxCapacity) * 100));
+  const tone = online ? '#73e2ad' : draining ? '#f5c76f' : '#ff7d79';
 
   return (
-    <div
-      className={`glass-panel border rounded-2xl p-4 shadow-xl transition-all relative overflow-hidden flex flex-col justify-between ${
-        isOnline
-          ? 'border-slate-800/90 hover:border-cyan-500/30'
-          : 'border-red-900/60 bg-red-950/20'
-      }`}
-    >
-      {/* Top Header */}
-      <div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div
-              className={`p-2 rounded-xl border ${
-                isOnline
-                  ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/40 glow-border-cyan'
-                  : 'bg-red-950/60 text-red-400 border-red-800/40'
-              }`}
-            >
-              <HardDrive className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-white font-mono">{server.name}</h3>
-              <p className="text-[11px] font-mono text-slate-400">
-                {server.ip}:{server.port}
-              </p>
-            </div>
+    <motion.article layout className="lab-panel p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-9 w-9 items-center justify-center border" style={{ borderColor: `${tone}55`, backgroundColor: `${tone}12`, color: tone }}>
+            <ServerIcon className="h-4 w-4" />
+            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full" style={{ backgroundColor: tone, boxShadow: `0 0 0 4px ${tone}18` }} />
           </div>
-
-          {/* Status Badge */}
-          <span
-            className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border flex items-center space-x-1.5 font-mono ${
-              isOnline
-                ? 'bg-emerald-950/80 text-emerald-400 border-emerald-700/60 glow-text-emerald'
-                : 'bg-red-950/80 text-red-400 border-red-700/60'
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'
-              }`}
-            />
-            <span>{server.status}</span>
-          </span>
-        </div>
-
-        {/* Live Metrics Grid */}
-        <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-          <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] uppercase tracking-wider font-mono flex items-center space-x-1">
-              <Activity className="w-3 h-3 text-cyan-400" />
-              <span>Active Conns</span>
-            </div>
-            <div className="text-base font-bold font-mono text-cyan-400 mt-0.5">
-              {server.activeConnections}
-            </div>
-          </div>
-
-          <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] uppercase tracking-wider font-mono">Requests Served</div>
-            <div className="text-base font-bold font-mono text-white mt-0.5">
-              {server.totalRequestsHandled}
-              {server.failedRequests > 0 && (
-                <span className="text-xs text-red-400 font-normal ml-1">({server.failedRequests} err)</span>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] uppercase tracking-wider font-mono flex items-center justify-between">
-              <span>CPU Load</span>
-              <span className="text-slate-200 font-bold">{isOnline ? `${server.cpuLoad}%` : '0%'}</span>
-            </div>
-            <div className="w-full bg-slate-900 h-2 rounded-full mt-1.5 overflow-hidden border border-slate-800">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  server.cpuLoad > 85 ? 'bg-red-500' : server.cpuLoad > 50 ? 'bg-amber-500' : 'bg-emerald-400'
-                }`}
-                style={{ width: isOnline ? `${server.cpuLoad}%` : '0%' }}
-              />
-            </div>
-          </div>
-
-          <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] uppercase tracking-wider font-mono flex items-center space-x-1">
-              <Clock className="w-3 h-3 text-amber-400" />
-              <span>Response Latency</span>
-            </div>
-            <div className="text-sm font-bold font-mono text-amber-300 mt-0.5">
-              {isOnline ? `${server.responseTimeMs} ms` : 'N/A'}
-            </div>
+          <div>
+            <h3 className="font-headline text-base tracking-[-0.035em] text-[#e8f1f5]">{server.name}</h3>
+            <p className="font-mono text-[10px] text-[#708b96]">{server.ip}:{server.port} · {server.zone}</p>
           </div>
         </div>
+        <span className="border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.15em]" style={{ borderColor: `${tone}55`, color: tone, backgroundColor: `${tone}0d` }}>{server.status}</span>
+      </div>
 
-        {/* WRR Weight Slider */}
-        <div className="mt-3 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-slate-400 text-[11px] flex items-center space-x-1 font-mono">
-              <Scale className="w-3 h-3 text-purple-400" />
-              <span>WRR Configured Weight:</span>
-            </span>
-            <span className="font-bold font-mono text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800/50">
-              {server.weight}
-            </span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="20"
-            value={server.weight}
-            onChange={(e) => updateServerWeight(server.id, parseInt(e.target.value, 10))}
-            className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
-          />
+      <div className="mt-4 grid grid-cols-3 gap-2 font-mono">
+        <div className="border border-[#b1ddea]/12 bg-[#08131b] p-2.5">
+          <Activity className="h-3.5 w-3.5 text-[#8ee8ff]" />
+          <div className="mt-2 text-[9px] uppercase tracking-[0.12em] text-[#68838e]">open TCP</div>
+          <div className="mt-0.5 text-lg text-[#d9ebf0]">{server.activeConnections}</div>
+        </div>
+        <div className="border border-[#b1ddea]/12 bg-[#08131b] p-2.5">
+          <Gauge className="h-3.5 w-3.5 text-[#f5c76f]" />
+          <div className="mt-2 text-[9px] uppercase tracking-[0.12em] text-[#68838e]">capacity</div>
+          <div className="mt-0.5 text-lg text-[#f5c76f]">{capacity}%</div>
+        </div>
+        <div className="border border-[#b1ddea]/12 bg-[#08131b] p-2.5">
+          <CircleDot className="h-3.5 w-3.5 text-[#73e2ad]" />
+          <div className="mt-2 text-[9px] uppercase tracking-[0.12em] text-[#68838e]">latency</div>
+          <div className="mt-0.5 text-lg text-[#73e2ad]">{online || draining ? `${server.responseTimeMs}ms` : '—'}</div>
         </div>
       </div>
 
-      {/* Action Button: Stop / Recover Server */}
-      <div className="mt-3.5 pt-2 border-t border-slate-800/80">
-        <button
-          onClick={() => toggleServerStatus(server.id)}
-          className={`w-full flex items-center justify-center space-x-2 py-2 rounded-xl text-xs font-bold font-mono transition-all shadow-md ${
-            isOnline
-              ? 'bg-red-950/70 hover:bg-red-900/90 text-red-300 border border-red-800/60 hover:shadow-red-950/50'
-              : 'bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-800/60 hover:shadow-emerald-950/50'
-          }`}
-        >
-          <Power className="w-3.5 h-3.5" />
-          <span>{isOnline ? 'STOP SERVER (Offline)' : 'RECOVER SERVER (Online)'}</span>
-        </button>
+      <div className="mt-4">
+        <div className="mb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-[#68838e]">
+          <span>socket pressure</span>
+          <span style={{ color: tone }}>{server.activeConnections}/{server.maxCapacity}</span>
+        </div>
+        <div className="h-1.5 overflow-hidden bg-[#071019]">
+          <motion.div className="h-full" animate={{ width: `${capacity}%` }} transition={{ type: 'spring', stiffness: 100, damping: 20 }} style={{ backgroundColor: tone }} />
+        </div>
       </div>
-    </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-[#b1ddea]/12 pt-3 font-mono text-[10px] text-[#78929d]">
+        <span>{server.totalConnectionsHandled} accepted</span>
+        <span>{server.halfOpenConnections} half-open · {server.timeWaitConnections} TIME-WAIT</span>
+      </div>
+
+      {algorithm === 'WEIGHTED_ROUND_ROBIN' && (
+        <div className="mt-3 border border-[#b1ddea]/12 bg-[#08131b] p-3">
+          <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-[#78929d]">
+            <span className="flex items-center gap-2"><Scale className="h-3.5 w-3.5 text-[#8ee8ff]" /> configured weight</span>
+            <span className="text-[#8ee8ff]">{server.weight}</span>
+          </div>
+          <input aria-label={`${server.name} weighted round robin weight`} type="range" min="1" max="20" value={server.weight} onChange={(event) => updateServerWeight(server.id, Number(event.target.value))} className="h-1.5 w-full cursor-pointer accent-[#8ee8ff]" />
+        </div>
+      )}
+
+      <button onClick={() => toggleServerStatus(server.id)} className={`mt-3 flex w-full items-center justify-center gap-2 border py-2.5 font-mono text-[10px] uppercase tracking-[0.13em] transition ${online ? 'border-[#ff7d79]/35 bg-[#271619] text-[#ffaaa0] hover:bg-[#3a1d20]' : 'border-[#73e2ad]/35 bg-[#0d2d25] text-[#9bf0c4] hover:bg-[#123f32]'}`}>
+        <Power className="h-3.5 w-3.5" />
+        {online ? 'stop accepting SYNs' : draining ? 'recover listener' : 'recover listener'}
+      </button>
+    </motion.article>
   );
 };

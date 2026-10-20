@@ -1,163 +1,330 @@
+# TCP/04 — Connection Lab
 
+> A visual, story-driven TCP load-balancing simulator for Computer Networks study.
 
-# Network Load Balancing & Server Selection Simulator
+TCP/04 turns one connection into a live narrative: a client opens a socket, the virtual IP chooses an eligible backend, the handshake completes, the stream becomes established, and the connection closes through FIN and TIME-WAIT. The surrounding telemetry shows what the routing decision changed in the cluster.
 
-> **3rd-Year Computer Networks (CN) Mini-Project**  
-> *Department of Computer Science & Engineering*
+This is an educational browser simulation. It is deliberately not a production load balancer and it does not send packets onto the network.
 
----
+## Why this project exists
 
-## 📌 Problem Statement
+The original idea — “show Round Robin, Least Connections, and Weighted Round Robin” — is useful but generic. The redesigned project makes the **TCP connection life cycle** the main character:
 
-In modern distributed web infrastructure and cloud computing, backend server clusters face unpredictable, high-volume traffic bursts. Directly routing traffic to a single server can cause CPU saturation, high latency, dropped requests, and single points of failure (SPOF). 
-
-A **Network Load Balancer (NLB)** operates at Layer 4 (Transport) and Layer 7 (Application) of the OSI model, acting as a reverse proxy virtual IP (VIP) to distribute client requests across multiple healthy backend server nodes. This project provides a real-time, interactive simulation of load balancing algorithms, failover mechanics, and performance analytics.
-
----
-
-## 🎯 Objectives
-
-1. **Simulate Algorithmic Selection**: Implement functional **Round Robin**, **Least Connections**, and **Weighted Round Robin** server selection logic.
-2. **High Availability & Failover**: Simulate dynamic server failures and automatic traffic re-routing away from offline nodes.
-3. **Packet Flow Visualization**: Provide an interactive SVG network topology mapping real-time request datagram paths from client endpoints to backend servers.
-4. **Performance Analytics**: Measure and display metrics including active TCP/UDP connections, CPU load percentage, latency round-trip time (RTT), and success/failure rates.
-5. **Educational Viva Utility**: Serve as a presentation-ready mini-project for Computer Networks viva voce examinations.
-
----
-
-## 🏗 System Architecture
-
-```
-                       ┌─────────────────────────┐
-                       │  CLIENT WORKSTATIONS    │
-                       │ 192.168.1.10 - .12      │
-                       └────────────┬────────────┘
-                                    │  Requests (TCP/UDP)
-                                    ▼
-                       ┌─────────────────────────┐
-                       │   VIRTUAL IP (VIP)      │
-                       │   LOAD BALANCER         │
-                       │   192.168.1.100:443     │
-                       └────────────┬────────────┘
-                                    │
-           ┌────────────────────────┼────────────────────────┐
-           │ (Algorithm Selection)  │ (Algorithm Selection)  │ (Algorithm Selection)
-           ▼                        ▼                        ▼
-┌────────────────────┐   ┌────────────────────┐   ┌────────────────────┐
-│      SERVER 1      │   │      SERVER 2      │   │      SERVER 3      │
-│  192.168.1.101:8080│   │  192.168.1.102:8080│   │  192.168.1.103:8080│
-│  (Weight: 5)       │   │  (Weight: 3)       │   │  (Weight: 2)       │
-└────────────────────┘   └────────────────────┘   └────────────────────┘
+```text
+client socket
+    │
+    ├── SYN ───────────────► virtual IP :443
+    │                         │
+    │                         ├── route one new flow
+    │                         │
+    │                         └──► selected target :8080
+    │                              SYN-ACK → ACK
+    │
+    └──────────── ESTABLISHED / ordered byte stream ────────────┘
+                              FIN → TIME-WAIT → CLOSED
 ```
 
----
+The interface is organized like a **connection flight recorder** rather than a collection of disconnected cards. The user can watch the same flow in four places at once:
 
-## 🚀 Key Features
+1. the topology stage,
+2. the TCP phase timeline,
+3. the connection inspector,
+4. the event and flow recorder.
 
-* **Interactive Network Topology**: Dynamic SVG canvas visualizing Client Endpoints, Load Balancer VIP, and Backend Server Nodes with animated packet flows and health indicators.
-* **Real Algorithmic Selection**:
-  * **Round Robin (RR)**: Cyclic sequential routing with deterministic index pointer tracking.
-  * **Least Connections (LC)**: Dynamically selects the server with the lowest active connection count.
-  * **Weighted Round Robin (WRR)**: Proportional traffic distribution using NGINX-style smooth weighted selection.
-* **Server Failover & Recovery**: Stop (Take Offline) and Recover (Bring Online) servers in real-time. Offline servers are immediately excluded from algorithm routing.
-* **Asynchronous Request Generation**: Send 1, 10, 50, 100 requests or activate continuous traffic at configurable rates (1, 5, 10, 20 req/s).
-* **Network Log & Request Inspector**: Inspect detailed headers (Source IP, Ephemeral Port, Destination VIP, Target Port, Protocol, Selected Server, Status, Latency).
-* **Recharts Real-time Metrics**: Synchronized analytics displaying Request Distribution, CPU Load over time, Response Latency, and Success/Failure ratios.
-* **Algorithm Benchmark Tool**: Run identical 100-request synthetic workloads to compare performance across all three algorithms side-by-side.
-* **Presentation Demo Mode**: Automated 8-step guided presentation mode for college project demonstrations.
+## What the simulator demonstrates
 
----
+### TCP connection story
 
-## ⚙️ Load Balancing Algorithms Explained
+- Client ephemeral source ports in the dynamic range `49152–65535`.
+- A virtual listener at `192.168.1.100:443`.
+- Backend TCP listeners at `192.168.1.101–103:8080`.
+- A visible three-way handshake: `SYN → SYN-ACK → ACK`.
+- A visible `ESTABLISHED` phase for the active byte stream.
+- Graceful teardown with `FIN` and `TIME-WAIT`.
+- A transport-level refused/reset path when no target is accepting new connections.
+- Sequence and acknowledgement numbers in the inspector to make TCP state concrete.
 
-### 1. Round Robin (RR)
-Requests are dispatched sequentially among online servers:
-$$\text{TargetServer} = \text{OnlineServers}[(i + 1) \pmod N]$$
-*When Server 2 goes offline, it is automatically skipped in the cyclic modulo calculation.*
+### TCP load-balancing policies
 
-### 2. Least Connections (LC)
-Routing target is selected based on active open connections:
-$$\text{TargetServer} = \arg\min_{s \in \text{OnlineServers}} \text{ActiveConnections}(s)$$
-*Tie-breaker: Resolves ties using lower CPU load or server registration order.*
+The load balancer selects a backend for a **new TCP connection/flow**. It does not independently reroute packets from an already-established stream.
 
-### 3. Weighted Round Robin (WRR)
-Uses NGINX smooth weighted round robin algorithm:
-1. Increase each server's current weight by its configured static weight.
-2. Select the server with the maximum current weight.
-3. Decrement the selected server's current weight by the sum of all online server weights.
+| Policy | What it demonstrates |
+| --- | --- |
+| **Round Robin** | Select the next eligible target in sequence. |
+| **Least Connections** | Select the eligible target with the fewest active TCP sockets. |
+| **Weighted Round Robin** | Use smooth weighted selection to express relative capacity, initially `5:3:2`. |
 
----
+### Failover and draining
 
-## 🛠 Technology Stack
+Taking a target offline removes it from new-flow selection. If it already has open sockets, it enters **DRAINING** first so the existing flows can finish. Recovery returns the listener to the eligible pool. This makes the difference between “stop accepting new connections” and “destroy every current connection” visible.
 
-* **Framework**: Next.js 14 / React 18
-* **Language**: TypeScript (Strict typing for servers, clients, requests, metrics)
-* **Styling**: Tailwind CSS (Custom dark cyber-network dashboard theme)
-* **Visualization**: SVG Interactive Canvas + Animated Motion Datagrams
-* **Charts**: Recharts
-* **Icons**: Lucide React
+### Operational telemetry
 
----
+- Active TCP connections
+- SYN backlog / half-open connection count
+- TIME-WAIT count
+- Per-target accepted connections
+- Synthetic CPU pressure and service latency
+- Average handshake time
+- Recent observed close rate
+- Target distribution and policy comparison
 
-## 📖 Computer Networking Concepts Demonstrated
+### Guided presentation mode
 
-1. **Client-Server Architecture**: Request-response communication paradigm over IPv4 sockets.
-2. **Layer 4 vs Layer 7 Routing**: Transport layer (TCP/UDP ports) and Application layer routing choices.
-3. **Multiplexing & Demultiplexing**: Mapping client ephemeral ports (49152–65535) to backend service sockets (Port 8080).
-4. **Fault Tolerance & Failover**: Automatic health monitoring and removal of unreachable nodes.
-5. **Quality of Service (QoS)**: Latency measurement and CPU load protection under heavy concurrency.
+The **Play story** control walks through eight chapters:
 
----
+1. Open the first TCP flow with Round Robin.
+2. Switch to Least Connections while sockets are active.
+3. Drain `ORBIT / 02`.
+4. Fail over new SYNs to the remaining eligible targets.
+5. Recover the listener.
+6. Switch to Weighted Round Robin.
+7. Stress the visual handshake queue.
+8. Pause on the completed story for inspection.
 
-## 💻 How to Run the Application
+The story uses the same actions as the manual controls; it is not a separate fake animation.
+
+## Research-grounded design decisions
+
+The simulator uses a simplified TCP proxy model, but its vocabulary follows the current TCP standard and implementation documentation.
+
+### TCP is a reliable byte stream, not a request queue
+
+RFC 9293 describes TCP as a reliable, in-order byte-stream service. The application data is carried in TCP segments, while the connection is identified by endpoint addresses and ports. That is why the interface uses **flow**, **socket**, **segment**, and **connection** deliberately instead of treating every packet as an independent request.
+
+### The handshake is a state transition
+
+The opening sequence is represented as:
+
+```text
+SYN       client → listener      synchronize initial sequence number
+SYN-ACK   listener → client      acknowledge and offer the listener's sequence
+ACK       client → listener      confirm the listener's sequence
+```
+
+The final ACK moves the story into `ESTABLISHED`. The simulation exposes the phase, flag, sequence number, and acknowledgement number so the visual state has a protocol reason behind it.
+
+### A Layer 4 target is selected for the connection
+
+Network load balancers generally use transport metadata such as protocol, source address, source port, destination address, and destination port. A target selection is associated with the TCP connection for its lifetime. This simulator presents that as a two-leg proxy story:
+
+```text
+client ↔ TCP gateway
+TCP gateway ↔ selected backend
+```
+
+Production products may use different proxy, pass-through, source-preservation, hashing, or failover designs. TCP/04 is a visual teaching model, not a vendor implementation.
+
+### Health and production traffic are separate concerns
+
+The UI labels health as simulated. A real TCP health check can show that a port accepts a connection; it does not automatically prove that the application, database, or dependency behind the port is ready. Production systems add thresholds, timeouts, draining, slow start, and product-specific all-targets-unhealthy behavior.
+
+### Backlog, active sockets, and TIME-WAIT are different things
+
+The lab keeps these counters distinct:
+
+- **SYN backlog / half-open:** the handshake has not completed.
+- **Active sockets:** the connection is established and consuming a backend connection slot.
+- **TIME-WAIT:** a closed flow is temporarily retained to protect against delayed segments.
+
+Linux documents separate behavior for the established accept queue and the incomplete SYN queue. The exact queue sizes and overflow behavior are operating-system implementation details, so the values in this app are clearly synthetic.
+
+## Project structure
+
+```text
+src/
+├── app/
+│   ├── globals.css              # design tokens, grid, route motion, reduced-motion rules
+│   ├── layout.tsx               # metadata, fonts, global simulation provider
+│   └── page.tsx                 # story-first page composition
+├── components/
+│   ├── StoryIntro.tsx           # narrative rail and current chapter
+│   ├── NetworkTopology.tsx      # animated SVG TCP topology
+│   ├── ConnectionInspector.tsx  # selected flow, socket header, route rationale
+│   ├── TcpTimeline.tsx           # SYN → ESTABLISHED → FIN → TIME-WAIT rail
+│   ├── SimulationControls.tsx   # policy, flow bursts, sustained traffic, story controls
+│   ├── ServerCard.tsx            # listener health, capacity, sockets, weights
+│   ├── MetricsDashboard.tsx     # charts for sockets, queues, CPU, outcomes
+│   ├── EventLogPanel.tsx         # accessible TCP flight recorder
+│   ├── AlgorithmExplanation.tsx # live candidate and score explanation
+│   ├── AlgorithmComparison.tsx  # repeatable 100-flow policy experiment
+│   ├── NetworkingConcepts.tsx   # researched teaching notes and source links
+│   ├── Header.tsx
+│   └── DemoBanner.tsx
+├── context/
+│   └── SimulationContext.tsx    # in-memory state machine, timers, story mode
+├── lib/
+│   └── simulationEngine.ts      # routing algorithms, metrics, benchmark model
+└── types/
+    └── simulation.ts            # TCP phases, flow records, metrics, logs
+```
+
+## Architecture
+
+The app is a client-side Next.js App Router page. There is no API route or persistence layer.
+
+```text
+React components
+       │ useSimulation()
+       ▼
+SimulationContext
+  ├── connection lifecycle timers
+  ├── server/client state
+  ├── event recorder
+  ├── story-mode orchestration
+  └── derived TCP metrics
+       │
+       ▼
+simulationEngine
+  ├── RR / LC / smooth WRR selection
+  ├── route decision explanation
+  ├── synthetic server pressure
+  └── benchmark workload
+```
+
+The context uses a generation token and tracked timers so reset/unmount does not allow stale connection callbacks to repopulate a new run. Metrics are sampled on a stable one-second interval instead of restarting every time the active-flow count changes.
+
+## Running locally
+
+### Requirements
+
+- Node.js 18.18+ (Node.js 20+ recommended)
+- npm
+
+### Install and start
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Run the development server
 npm run dev
-
-# 3. Open in browser
-http://localhost:3000
 ```
 
----
+Open [http://localhost:3000](http://localhost:3000).
 
-## 🧪 Testing & Verification Checklist
+### Production build
 
-| # | Test Scenario | Steps | Expected Outcome | Status |
-|---|---------------|-------|------------------|--------|
-| 1 | **Round Robin Distribution** | Select RR, click "Send 10 Req" | Requests alternate sequentially: S1 → S2 → S3 → S1 | PASS |
-| 2 | **Server Offline Routing** | Click "STOP SERVER" on Server 2, send 10 req | 0 requests go to S2; traffic routes only to S1 and S3 | PASS |
-| 3 | **Least Connections** | Select LC algorithm, generate continuous traffic | Requests dynamically target server with lowest active conns | PASS |
-| 4 | **Weighted Round Robin** | Set S1=5, S2=3, S3=2, send 50 req | S1 receives ~50%, S2 ~30%, S3 ~20% of traffic | PASS |
-| 5 | **All Servers Offline** | Stop S1, S2, and S3, send requests | Requests fail immediately with `503 Service Unavailable` | PASS |
-| 6 | **Server Recovery** | Recover Server 2 | S2 is immediately re-included in routing pool | PASS |
-| 7 | **Reset Simulation** | Click "RESET SIMULATION" | All counters, logs, and server states reset to default | PASS |
-| 8 | **Continuous Traffic** | Start Continuous Traffic at 10 rps | Real-time charts update continuously | PASS |
-| 9 | **Request Inspector** | Click any request in Request Log | Modal displays full IP/port socket details | PASS |
-| 10 | **Presentation Demo** | Click "PRESENTATION DEMO MODE" | Automated 8-step guided sequence executes | PASS |
+```bash
+npm run build
+npm run start
+```
 
----
+### Available scripts
 
-## ⚠️ Limitations
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server. |
+| `npm run build` | Type-check and produce the optimized production build. |
+| `npm run start` | Serve the production build. |
+| `npm run lint` | Existing Next.js lint entry point; Next.js 15 may prompt for ESLint setup on a fresh checkout. |
 
-* **Software Simulation**: This project is an educational software simulation intended for demonstration and coursework. It does not bind real network socket drivers (e.g., eBPF, DPDK, Linux IPVS) or process live TCP packets.
-* **In-Memory State**: State is preserved in local memory during session execution and resets upon page refresh.
+## How to use the lab
 
----
+1. Start with **Open one** and watch the highlighted flow travel from a client to the VIP and then to a backend.
+2. Read the phase rail while the connection moves through `SYN`, `SYN-ACK`, `ACK`, and `ESTABLISHED`.
+3. Open the **Connection trace** panel to inspect the source port, VIP, backend leg, flags, sequence values, and routing rationale.
+4. Open several flows, then switch between RR, LC, and WRR to see the decision evidence change.
+5. Take a target offline while flows are open. It becomes `DRAINING` when existing sockets remain and is excluded from new selection.
+6. Run sustained traffic at `1/s`, `5/s`, `10/s`, or `20/s` to populate the telemetry charts.
+7. Use the **TCP flows** tab in the flight recorder to select any active or completed flow.
+8. Run the controlled 100-flow experiment to compare policy distribution.
+9. Use **Play story** for the guided eight-chapter walkthrough.
 
-## 🎓 Viva Questions & Answers
+## Limitations and model boundaries
 
-**Q1: What is the difference between Layer 4 and Layer 7 Load Balancing?**  
-*Answer*: Layer 4 load balancing routes traffic based on IP addresses and TCP/UDP port headers without inspecting application payload data. Layer 7 load balancing inspects HTTP/HTTPS headers, cookies, and URIs to make content-aware routing decisions.
+This project does **not**:
 
-**Q2: What happens when a server fails in a Weighted Round Robin cluster?**  
-*Answer*: The load balancer detects node failure via health-check probes (TCP handshake/HTTP GET `/health`). The failed server's weight is zeroed out and removed from the active pool, redistributing traffic proportionally among remaining online nodes.
+- bind a real TCP socket;
+- send or receive live network traffic;
+- implement a kernel TCP state machine;
+- perform real health probes;
+- model retransmission, congestion control, packet loss, MSS negotiation, window scaling, SACK, or real TCP timers;
+- reproduce a specific AWS, NGINX, Linux, or other vendor's failover policy;
+- persist state after a page refresh;
+- claim that synthetic latency equals network RTT;
+- route application requests inside an established byte stream.
 
----
+The simulated `responseTimeMs` is synthetic service delay. The UI keeps it separate from the handshake phase and connection state, but it is not a packet capture measurement.
 
-*Developed for 3rd-Year Computer Networks Mini-Project Submission.*
-#   N e t w o r k _ l o a d _ b a l a n c e r  
- 
+The failover story uses a safe educational default: stop new handshakes and allow existing connections to drain. Real systems can instead reset connections, time them out, or fail open depending on configuration and product semantics.
+
+## References
+
+These are the primary sources used to revise the simulator's terminology, lifecycle story, and research notes. Links are also available in the application under **Field notes / sources**.
+
+1. **Eddy, W. (Ed.). RFC 9293: Transmission Control Protocol (TCP). IETF, August 2022.**
+   - TCP's reliable in-order byte stream, endpoint ports, control flags, connection states, handshake, reset, FIN, sequence numbers, and TIME-WAIT.
+   - <https://www.rfc-editor.org/rfc/rfc9293.html>
+
+2. **Eddy, W. RFC 4987: TCP SYN Flooding Attacks and Common Mitigations. IETF, August 2007.**
+   - Half-open connections, SYN-RECEIVED state, backlog pressure, queue exhaustion, SYN caches, SYN cookies, and the distinction between new connection establishment and existing connections.
+   - <https://www.rfc-editor.org/rfc/rfc4987.html>
+
+3. **Amazon Web Services. What is a Network Load Balancer?**
+   - Layer 4 listeners, target groups, health checks, flow hashing, and the principle that an individual TCP connection is routed to one target for its lifetime.
+   - <https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html>
+
+4. **F5 NGINX. TCP load balancing and stream proxy documentation.**
+   - Stream proxying, upstream groups, Round Robin, Least Connections, weights, maximum connections, and health-check integration.
+   - <https://docs.nginx.com/nginx/admin-guide/load-balancer/tcp-udp-load-balancer/>
+
+5. **Linux man-pages project. `listen(2)`.**
+   - Passive TCP sockets, `listen()` backlog, established sockets waiting for `accept()`, and the Linux distinction between the accept queue and incomplete SYN queue.
+   - <https://man7.org/linux/man-pages/man2/listen.2.html>
+
+These sources are educational references, not copied implementation code. Vendor behavior differs; the simulator labels its own assumptions where the sources describe product- or OS-specific behavior.
+
+## Verification checklist
+
+The following checks describe the intended observable behavior:
+
+| Scenario | Expected result |
+| --- | --- |
+| Open one TCP flow | The selected flow appears in the topology and progresses through SYN → SYN-ACK → ACK → ESTABLISHED → FIN → TIME-WAIT → CLOSED. |
+| Open 10/50/100 flows | The flight recorder, target distribution, and telemetry update while keeping transport and application concerns separate. |
+| Switch to Least Connections | The route rationale references active socket counts. |
+| Switch to Weighted Round Robin | The server weight controls appear and the benchmark shows the configured long-run ratio. |
+| Drain a target | New flows avoid the target; existing flows are not silently labeled as successful because the target was toggled. |
+| Take every target offline | New SYNs are recorded as refused/failed at the TCP boundary. |
+| Recover a target | The listener returns to the eligible pool. |
+| Reset during a burst | Old timers do not repopulate the new run with stale flows or logs. |
+| Run guided story | The eight chapters use the intended routing policy for each chapter and can be paused, advanced, replayed, or exited. |
+| Reduced motion | CSS motion is disabled while the phase and state information remain available. |
+
+There is currently no dedicated test runner in the repository. `npm run build` is the primary automated check; manual interaction with the checklist above is the visual/integration verification layer.
+
+## Viva prompts
+
+### Why does the load balancer choose a server once per TCP connection?
+
+Because a TCP connection is an ordered, stateful byte stream. Moving later segments from the same connection to a different backend would break the transport state unless the architecture has a separate state-sharing or proxy mechanism. A Layer 4 load balancer therefore maintains flow affinity for the connection.
+
+### Why are FIN and RST different?
+
+FIN begins an orderly close: the sender has no more data in that direction. RST aborts or rejects the connection immediately. The simulator uses FIN for the normal story and a refused/reset outcome when there is no eligible listener.
+
+### What does Least Connections miss?
+
+It sees the number of active connections, not their CPU cost, bandwidth, queue depth, or request complexity. It is useful when connection duration varies, but it is still an approximation of workload.
+
+### Why keep TIME-WAIT in the story?
+
+TCP retains TIME-WAIT long enough to prevent delayed segments from an earlier connection incarnation from being confused with a new connection using the same endpoint pair. It is not an active application socket, but it is useful operational evidence.
+
+### Does a TCP health check prove the service is healthy?
+
+No. It can prove that a TCP listener accepts a connection. A production application often needs a protocol-aware or dependency-aware readiness check in addition to transport reachability.
+
+## Design direction
+
+The visual system is intentionally a dark technical field guide rather than a generic “neon NOC” dashboard:
+
+- one route accent (`#8ee8ff`) keeps the wire legible;
+- green, amber, and red are reserved for transport/health meaning;
+- Space Grotesk provides the narrative hierarchy;
+- JetBrains Mono is reserved for addresses, ports, flags, and measurements;
+- animation is state-driven: segments move because a phase changed, route lines pulse because a path is live, and charts move because the simulation sampled new telemetry;
+- `prefers-reduced-motion` removes movement without removing the story;
+- the primary stage comes before the data panels so the connection journey is understandable before the numbers become dense.
+
+## License and academic context
+
+This repository is an educational third-year Computer Networks mini-project. The code is provided for coursework, demonstration, and further experimentation. Confirm the licensing and attribution requirements of any future assets or third-party material before redistribution.

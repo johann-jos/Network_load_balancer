@@ -1,375 +1,200 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { ArrowRight, CircleDot, Network, Radio, Server as ServerIcon, ShieldCheck } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import { Globe, Cpu, Server as ServerIcon, Radio, ShieldAlert } from 'lucide-react';
+import { NetworkRequest, Server } from '../types/simulation';
 
-interface NodePosition {
-  x: number;
-  y: number;
-}
+type Point = { x: number; y: number };
+
+const clientPoints: Record<string, Point> = {
+  'client-1': { x: 115, y: 82 },
+  'client-2': { x: 115, y: 235 },
+  'client-3': { x: 115, y: 388 },
+};
+
+const serverPoints: Record<string, Point> = {
+  'server-1': { x: 882, y: 82 },
+  'server-2': { x: 882, y: 235 },
+  'server-3': { x: 882, y: 388 },
+};
+
+const loadBalancerPoint = { x: 500, y: 235 };
+
+const routePath = (from: Point, to: Point) => `M ${from.x + 52} ${from.y} C ${from.x + 210} ${from.y}, ${to.x - 215} ${to.y}, ${to.x - 58} ${to.y}`;
+
+const packetPoint = (request: NetworkRequest, clientPoint: Point, targetPoint: Point): Point => {
+  switch (request.phase) {
+    case 'SYN_SENT':
+      return clientPoint;
+    case 'ROUTING':
+    case 'ACK':
+      return loadBalancerPoint;
+    case 'SYN_ACK':
+    case 'ESTABLISHED':
+    case 'FIN_WAIT':
+    case 'TIME_WAIT':
+      return targetPoint;
+    default:
+      return loadBalancerPoint;
+  }
+};
+
+const serverTone = (server: Server) => {
+  if (server.status === 'OFFLINE') return { stroke: '#ff7d79', fill: '#261519', text: '#ffaaa0' };
+  if (server.status === 'DRAINING') return { stroke: '#f5c76f', fill: '#282116', text: '#f5c76f' };
+  return { stroke: '#73e2ad', fill: '#0c2421', text: '#9bf0c4' };
+};
 
 export const NetworkTopology: React.FC = () => {
-  const { servers, clients, algorithm, protocol, activeRequests } = useSimulation();
-
-  // Coordinates for canvas layout (SVG 800x420)
-  const clientCoords: Record<string, NodePosition> = useMemo(
-    () => ({
-      'client-1': { x: 95, y: 80 },
-      'client-2': { x: 95, y: 210 },
-      'client-3': { x: 95, y: 340 },
-    }),
-    []
-  );
-
-  const lbCoord: NodePosition = useMemo(() => ({ x: 395, y: 210 }), []);
-
-  const serverCoords: Record<string, NodePosition> = useMemo(
-    () => ({
-      'server-1': { x: 695, y: 80 },
-      'server-2': { x: 695, y: 210 },
-      'server-3': { x: 695, y: 340 },
-    }),
-    []
-  );
+  const { servers, clients, algorithm, activeRequests, featuredRequest } = useSimulation();
+  const reduceMotion = useReducedMotion();
+  const targetIds = useMemo(() => new Set(activeRequests.map((request) => request.selectedServerId).filter(Boolean)), [activeRequests]);
+  const featuredTarget = featuredRequest?.selectedServerId;
+  const featuredClient = clients.find((client) => client.ip === featuredRequest?.clientIp);
 
   return (
-    <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-2xl relative overflow-hidden flex flex-col h-full">
-      {/* Canvas Header */}
-      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-3">
-        <div className="flex items-center space-x-2.5">
-          <div className="p-1.5 bg-cyan-950/80 border border-cyan-500/40 rounded-lg text-cyan-400">
-            <Globe className="w-4 h-4 animate-spin" style={{ animationDuration: '20s' }} />
+    <section className="lab-panel scanline relative overflow-hidden p-4 sm:p-6" aria-labelledby="topology-title">
+      <div className="technical-grid pointer-events-none absolute inset-0 opacity-60" />
+      <div className="relative z-[1] flex flex-col gap-4 border-b border-[#b1ddea]/15 pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]">
+            <Network className="h-3.5 w-3.5" />
+            Live topology / TCP proxy view
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
-              Interactive Topology & Datagram Flow Map
-            </h2>
-            <p className="text-[11px] text-slate-400">
-              Live Layer 4 / Layer 7 Packet Switching & Routing Simulation
-            </p>
-          </div>
+          <h2 id="topology-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5] sm:text-3xl">The route is a sequence, not a straight line.</h2>
+          <p className="mt-2 max-w-xl text-xs leading-5 text-[#849da8]">The VIP accepts the client leg, chooses one target, then carries the transport story across a second leg.</p>
         </div>
-
-        <div className="flex items-center space-x-3 text-xs">
-          <span className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            <span className="font-mono text-cyan-300 text-[11px] font-bold">
-              In-Flight: {activeRequests.length}
-            </span>
+        <div className="flex shrink-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[#6f8994]">
+          <span className="flex items-center gap-2 border border-[#73e2ad]/20 bg-[#0a201c] px-2.5 py-1.5 text-[#73e2ad]">
+            <Radio className="h-3 w-3" /> TCP only
           </span>
-          <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-purple-300 font-mono text-[11px] border border-purple-800/50">
-            {protocol} Datagrams
-          </span>
+          <span className="border border-[#8ee8ff]/20 bg-[#091722] px-2.5 py-1.5 text-[#8ee8ff]">{activeRequests.length} in flight</span>
         </div>
       </div>
 
-      {/* Main Interactive SVG Canvas */}
-      <div className="relative flex-1 w-full bg-slate-950/90 rounded-xl border border-slate-800/90 overflow-hidden flex items-center justify-center min-h-[380px] shadow-inner">
-        {/* Subtle high-tech grid background pattern */}
-        <div
-          className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, #06b6d4 1px, transparent 0), radial-gradient(circle at 1px 1px, #1e293b 1px, transparent 0)',
-            backgroundSize: '24px 24px, 12px 12px',
-          }}
-        />
-
-        <svg viewBox="0 0 800 420" className="w-full h-full max-h-[440px] select-none">
+      <div className="relative z-[1] mt-4 overflow-hidden border border-[#b1ddea]/12 bg-[#050c12]">
+        <svg viewBox="0 0 1000 470" className="h-auto min-h-[360px] w-full" role="img" aria-labelledby="topology-svg-title topology-svg-desc">
+          <title id="topology-svg-title">TCP client to virtual IP to backend server topology</title>
+          <desc id="topology-svg-desc">Three clients connect to a virtual load balancer. The load balancer chooses one healthy TCP backend while animated segments show the current flow phase.</desc>
           <defs>
-            {/* Soft Glow Filters */}
-            <filter id="glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glow-red" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glow-purple" x="-30%" y="-30%" width="160%" height="160%">
+            <filter id="soft-cyan" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
-
-            {/* Linear Cable Gradients */}
-            <linearGradient id="cable-cyan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#0284c7" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.9" />
+            <filter id="soft-green" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+            <linearGradient id="client-route" x1="0" x2="1">
+              <stop offset="0" stopColor="#1e9ab8" stopOpacity="0.2" />
+              <stop offset="1" stopColor="#8ee8ff" stopOpacity="0.72" />
             </linearGradient>
-
-            <linearGradient id="cable-emerald-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.9" />
+            <linearGradient id="server-route" x1="0" x2="1">
+              <stop offset="0" stopColor="#8ee8ff" stopOpacity="0.7" />
+              <stop offset="1" stopColor="#73e2ad" stopOpacity="0.72" />
             </linearGradient>
           </defs>
 
-          {/* Connection Lines: Clients -> Load Balancer */}
+          <text x="26" y="28" fill="#597480" fontSize="10" fontFamily="JetBrains Mono, monospace" letterSpacing="2">CLIENT LEG / SOURCE SOCKETS</text>
+          <text x="780" y="28" fill="#597480" fontSize="10" fontFamily="JetBrains Mono, monospace" letterSpacing="2">TARGET LEG / LISTEN :8080</text>
+
           {clients.map((client) => {
-            const pos = clientCoords[client.id];
-            if (!pos) return null;
+            const point = clientPoints[client.id];
             return (
-              <g key={`cable-c-${client.id}`}>
-                {/* Background cable shadow */}
-                <path
-                  d={`M ${pos.x + 40} ${pos.y} C ${pos.x + 170} ${pos.y}, ${lbCoord.x - 170} ${lbCoord.y}, ${lbCoord.x - 55} ${lbCoord.y}`}
-                  fill="none"
-                  stroke="#0f172a"
-                  strokeWidth="5"
-                />
-                <path
-                  d={`M ${pos.x + 40} ${pos.y} C ${pos.x + 170} ${pos.y}, ${lbCoord.x - 170} ${lbCoord.y}, ${lbCoord.x - 55} ${lbCoord.y}`}
-                  fill="none"
-                  stroke="#1e293b"
-                  strokeWidth="3"
-                />
-                <path
-                  d={`M ${pos.x + 40} ${pos.y} C ${pos.x + 170} ${pos.y}, ${lbCoord.x - 170} ${lbCoord.y}, ${lbCoord.x - 55} ${lbCoord.y}`}
-                  fill="none"
-                  stroke="url(#cable-cyan-grad)"
-                  strokeWidth="1.5"
-                  strokeOpacity="0.6"
-                  className="animate-dash"
-                />
+              <g key={`client-link-${client.id}`}>
+                <path d={routePath(point, loadBalancerPoint)} fill="none" stroke="#0d222c" strokeWidth="7" />
+                <path d={routePath(point, loadBalancerPoint)} fill="none" stroke="url(#client-route)" strokeWidth="1.5" className="route-line-slow" />
               </g>
             );
           })}
 
-          {/* Connection Lines: Load Balancer -> Servers */}
           {servers.map((server) => {
-            const pos = serverCoords[server.id];
-            if (!pos) return null;
-            const isOnline = server.status === 'ONLINE';
-
+            const point = serverPoints[server.id];
+            const tone = serverTone(server);
+            const isTargeted = targetIds.has(server.id) || featuredTarget === server.id;
             return (
-              <g key={`cable-s-${server.id}`}>
-                <path
-                  d={`M ${lbCoord.x + 55} ${lbCoord.y} C ${lbCoord.x + 170} ${lbCoord.y}, ${pos.x - 170} ${pos.y}, ${pos.x - 50} ${pos.y}`}
-                  fill="none"
-                  stroke="#0f172a"
-                  strokeWidth="5"
+              <g key={`server-link-${server.id}`}>
+                <path d={routePath(loadBalancerPoint, point)} fill="none" stroke="#0d222c" strokeWidth="8" />
+                <path d={routePath(loadBalancerPoint, point)} fill="none" stroke={server.status === 'ONLINE' ? 'url(#server-route)' : tone.stroke} strokeWidth={isTargeted ? 2.5 : 1.2} strokeOpacity={isTargeted ? 0.95 : 0.35} strokeDasharray={server.status === 'ONLINE' ? undefined : '5 7'} className={server.status === 'ONLINE' ? 'route-line' : ''} />
+              </g>
+            );
+          })}
+
+          {activeRequests.map((request) => {
+            const client = clients.find((item) => item.ip === request.clientIp) ?? clients[0];
+            const target = servers.find((server) => server.id === request.selectedServerId) ?? servers[0];
+            if (!client || !target) return null;
+            const position = packetPoint(request, clientPoints[client.id], serverPoints[target.id]);
+            const color = request.currentFlag === 'RST' ? '#ff7d79' : request.phase === 'ESTABLISHED' ? '#73e2ad' : '#8ee8ff';
+            return (
+              <g key={request.id}>
+                <motion.circle
+                  r={request === featuredRequest ? 8 : 5.5}
+                  fill={color}
+                  filter={request.phase === 'ESTABLISHED' ? 'url(#soft-green)' : 'url(#soft-cyan)'}
+                  initial={{ cx: clientPoints[client.id].x, cy: clientPoints[client.id].y, opacity: 0 }}
+                  animate={{ cx: position.x, cy: position.y, opacity: 1 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.48, ease: [0.16, 1, 0.3, 1] }}
                 />
-                <path
-                  d={`M ${lbCoord.x + 55} ${lbCoord.y} C ${lbCoord.x + 170} ${lbCoord.y}, ${pos.x - 170} ${pos.y}, ${pos.x - 50} ${pos.y}`}
-                  fill="none"
-                  stroke={isOnline ? '#1e293b' : '#3d1212'}
-                  strokeWidth="3"
-                />
-                {isOnline ? (
-                  <path
-                    d={`M ${lbCoord.x + 55} ${lbCoord.y} C ${lbCoord.x + 170} ${lbCoord.y}, ${pos.x - 170} ${pos.y}, ${pos.x - 50} ${pos.y}`}
-                    fill="none"
-                    stroke="url(#cable-emerald-grad)"
-                    strokeWidth="1.5"
-                    strokeOpacity="0.7"
-                    className="animate-dash"
-                  />
-                ) : (
-                  <path
-                    d={`M ${lbCoord.x + 55} ${lbCoord.y} C ${lbCoord.x + 170} ${lbCoord.y}, ${pos.x - 170} ${pos.y}, ${pos.x - 50} ${pos.y}`}
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    strokeOpacity="0.8"
-                  />
+                {request === featuredRequest && (
+                  <motion.circle cx={position.x} cy={position.y} r="15" fill="none" stroke={color} strokeOpacity="0.35" strokeWidth="1" animate={reduceMotion ? undefined : { r: [13, 21, 13], opacity: [0.75, 0, 0.75] }} transition={{ duration: 1.8, repeat: Infinity }} />
                 )}
               </g>
             );
           })}
 
-          {/* Animated In-Flight Packets */}
-          {activeRequests.map((req) => {
-            const clientObj = clients.find((c) => c.ip === req.clientIp) || clients[0];
-            const startPos = clientCoords[clientObj.id] || { x: 95, y: 210 };
-            const destServer = servers.find((s) => s.id === req.selectedServerId);
-            const targetPos = destServer ? serverCoords[destServer.id] : null;
-
-            // Path 1: Client -> LB
-            const pathClientToLb = `M ${startPos.x + 40} ${startPos.y} C ${startPos.x + 170} ${startPos.y}, ${lbCoord.x - 170} ${lbCoord.y}, ${lbCoord.x - 55} ${lbCoord.y}`;
-
-            // Path 2: LB -> Server
-            const pathLbToServer = targetPos
-              ? `M ${lbCoord.x + 55} ${lbCoord.y} C ${lbCoord.x + 170} ${lbCoord.y}, ${targetPos.x - 170} ${targetPos.y}, ${targetPos.x - 50} ${targetPos.y}`
-              : null;
-
-            return (
-              <g key={`packet-${req.id}`}>
-                {/* Packet Client -> LB */}
-                <circle r="6" fill="#38bdf8" filter="url(#glow-cyan)">
-                  <animateMotion path={pathClientToLb} dur="0.38s" repeatCount="1" fill="freeze" />
-                </circle>
-
-                {/* Packet LB -> Server */}
-                {pathLbToServer && (
-                  <circle r="7" fill="#34d399" filter="url(#glow-emerald)">
-                    <animateMotion
-                      path={pathLbToServer}
-                      begin="0.32s"
-                      dur="0.42s"
-                      repeatCount="1"
-                      fill="freeze"
-                    />
-                  </circle>
-                )}
-              </g>
-            );
-          })}
-
-          {/* CLIENT NODES */}
           {clients.map((client) => {
-            const pos = clientCoords[client.id];
-            if (!pos) return null;
+            const point = clientPoints[client.id];
             return (
-              <g key={`node-c-${client.id}`} transform={`translate(${pos.x}, ${pos.y})`}>
-                <rect
-                  x="-42"
-                  y="-26"
-                  width="84"
-                  height="52"
-                  rx="12"
-                  fill="#0b1120"
-                  stroke="#1e293b"
-                  strokeWidth="2"
-                  className="hover:stroke-cyan-400 transition-colors cursor-pointer"
-                />
-                <rect
-                  x="-42"
-                  y="-26"
-                  width="84"
-                  height="52"
-                  rx="12"
-                  fill="none"
-                  stroke="#38bdf8"
-                  strokeWidth="1"
-                  strokeOpacity="0.3"
-                />
-
-                <circle cx="-24" cy="-8" r="4" fill="#38bdf8" />
-                <text x="0" y="8" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
-                  {client.name.split(' ')[2] || client.name}
-                </text>
-                <text x="0" y="20" textAnchor="middle" fill="#94a3b8" fontSize="8" fontFamily="Fira Code, monospace">
-                  {client.ip}
-                </text>
+              <g key={client.id} transform={`translate(${point.x} ${point.y})`}>
+                <rect x="-52" y="-31" width="104" height="62" fill="#0b1b25" stroke="#2c6476" strokeWidth="1.4" />
+                <circle cx="-37" cy="-17" r="4" fill="#8ee8ff" />
+                <text x="0" y="-8" textAnchor="middle" fill="#e8f1f5" fontSize="12" fontWeight="700" fontFamily="Space Grotesk, sans-serif">{client.name}</text>
+                <text x="0" y="10" textAnchor="middle" fill="#72909c" fontSize="9" fontFamily="JetBrains Mono, monospace">{client.ip}</text>
+                <text x="0" y="23" textAnchor="middle" fill="#4e6d78" fontSize="8" fontFamily="JetBrains Mono, monospace">{client.activeConnections} open</text>
               </g>
             );
           })}
 
-          {/* LOAD BALANCER VIP NODE */}
-          <g transform={`translate(${lbCoord.x}, ${lbCoord.y})`}>
-            {/* Outer aura glow ring */}
-            <rect
-              x="-62"
-              y="-42"
-              width="124"
-              height="84"
-              rx="18"
-              fill="#06b6d4"
-              fillOpacity="0.08"
-              filter="url(#glow-purple)"
-            />
-
-            <rect
-              x="-58"
-              y="-38"
-              width="116"
-              height="76"
-              rx="16"
-              fill="#090d16"
-              stroke="#06b6d4"
-              strokeWidth="2.5"
-              filter="url(#glow-cyan)"
-            />
-
-            {/* Algorithm Pill */}
-            <rect x="-48" y="-30" width="96" height="18" rx="6" fill="#082f49" stroke="#0284c7" strokeWidth="0.8" />
-            <text x="0" y="-17" textAnchor="middle" fill="#38bdf8" fontSize="9" fontWeight="bold" fontFamily="Fira Code">
-              {algorithm.replace('_', ' ')}
-            </text>
-
-            <text x="0" y="3" textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="800">
-              LOAD BALANCER
-            </text>
-            <text x="0" y="16" textAnchor="middle" fill="#06b6d4" fontSize="9" fontFamily="Fira Code, monospace">
-              192.168.1.100:443
-            </text>
-
-            {/* Queue Badge */}
-            <rect x="-40" y="22" width="80" height="13" rx="4" fill="#1e293b" />
-            <text x="0" y="31" textAnchor="middle" fill="#cbd5e1" fontSize="8" fontFamily="Fira Code, monospace">
-              In-flight: {activeRequests.length}
-            </text>
+          <g transform={`translate(${loadBalancerPoint.x} ${loadBalancerPoint.y})`}>
+            <circle r="72" fill="#0c2a36" fillOpacity="0.2" stroke="#8ee8ff" strokeOpacity="0.22" strokeDasharray="2 9" />
+            <rect x="-76" y="-51" width="152" height="102" fill="#0b202b" stroke="#8ee8ff" strokeWidth="2" filter="url(#soft-cyan)" />
+            <text x="0" y="-25" textAnchor="middle" fill="#8ee8ff" fontSize="9" fontFamily="JetBrains Mono, monospace" letterSpacing="1.5">VIP / LISTENER</text>
+            <text x="0" y="1" textAnchor="middle" fill="#e8f1f5" fontSize="15" fontWeight="800" fontFamily="Space Grotesk, sans-serif">TCP GATEWAY</text>
+            <text x="0" y="20" textAnchor="middle" fill="#7bb9c8" fontSize="10" fontFamily="JetBrains Mono, monospace">192.168.1.100:443</text>
+            <rect x="-54" y="30" width="108" height="11" fill="#08131b" />
+            <text x="0" y="38" textAnchor="middle" fill="#6b9aa8" fontSize="8" fontFamily="JetBrains Mono, monospace">{algorithm.replaceAll('_', ' ')}</text>
           </g>
 
-          {/* BACKEND SERVER NODES */}
           {servers.map((server) => {
-            const pos = serverCoords[server.id];
-            if (!pos) return null;
-            const isOnline = server.status === 'ONLINE';
-
+            const point = serverPoints[server.id];
+            const tone = serverTone(server);
             return (
-              <g key={`node-s-${server.id}`} transform={`translate(${pos.x}, ${pos.y})`}>
-                <rect
-                  x="-52"
-                  y="-32"
-                  width="104"
-                  height="64"
-                  rx="12"
-                  fill={isOnline ? '#0b1120' : '#221010'}
-                  stroke={isOnline ? '#10b981' : '#ef4444'}
-                  strokeWidth="2"
-                  filter={isOnline ? 'url(#glow-emerald)' : 'url(#glow-red)'}
-                  className="transition-all"
-                />
-
-                {/* Status Dot */}
-                <circle
-                  cx="-38"
-                  cy="-18"
-                  r="5"
-                  fill={isOnline ? '#10b981' : '#ef4444'}
-                  className={isOnline ? 'animate-pulse' : ''}
-                />
-
-                <text x="4" y="-14" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">
-                  {server.name}
-                </text>
-                <text x="0" y="0" textAnchor="middle" fill="#94a3b8" fontSize="8" fontFamily="Fira Code, monospace">
-                  {server.ip}:{server.port}
-                </text>
-
-                {/* Status / Active conns */}
-                {isOnline ? (
-                  <>
-                    <text x="0" y="13" textAnchor="middle" fill="#34d399" fontSize="9" fontWeight="bold" fontFamily="Fira Code">
-                      Conns: {server.activeConnections} | {server.cpuLoad}% CPU
-                    </text>
-                    {/* CPU Load bar */}
-                    <rect x="-42" y="18" width="84" height="4" rx="2" fill="#1e293b" />
-                    <rect
-                      x="-42"
-                      y="18"
-                      width={Math.min(84, (server.cpuLoad / 100) * 84)}
-                      height="4"
-                      rx="2"
-                      fill={server.cpuLoad > 85 ? '#ef4444' : server.cpuLoad > 50 ? '#f59e0b' : '#10b981'}
-                    />
-                  </>
-                ) : (
-                  <text x="0" y="14" textAnchor="middle" fill="#ef4444" fontSize="9" fontWeight="bold">
-                    🚫 SERVER OFFLINE
-                  </text>
-                )}
+              <g key={server.id} transform={`translate(${point.x} ${point.y})`}>
+                <rect x="-65" y="-35" width="130" height="70" fill={tone.fill} stroke={tone.stroke} strokeWidth={featuredTarget === server.id ? 2.5 : 1.4} />
+                <circle cx="-49" cy="-20" r="4.5" fill={tone.stroke} />
+                <text x="6" y="-12" textAnchor="middle" fill="#e8f1f5" fontSize="12" fontWeight="700" fontFamily="Space Grotesk, sans-serif">{server.name}</text>
+                <text x="0" y="6" textAnchor="middle" fill="#76909a" fontSize="9" fontFamily="JetBrains Mono, monospace">{server.ip}:8080</text>
+                <text x="0" y="21" textAnchor="middle" fill={tone.text} fontSize="9" fontWeight="700" fontFamily="JetBrains Mono, monospace">{server.status === 'ONLINE' ? `${server.activeConnections} sockets · ${server.cpuLoad}%` : server.status}</text>
               </g>
             );
           })}
         </svg>
+
+        <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#b1ddea]/10 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[#64818c]">
+          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#8ee8ff]" /> SYN / control segment</span>
+          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#73e2ad]" /> established / data stream</span>
+          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#f5c76f]" /> drain / time-wait</span>
+        </div>
       </div>
-    </div>
+
+      <div className="relative z-[1] mt-4 flex flex-wrap items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.14em] text-[#6b8792]">
+        <span className="flex items-center gap-2"><CircleDot className="h-3.5 w-3.5 text-[#8ee8ff]" /> Selected flow: {featuredRequest ? `#${featuredRequest.requestId} / ${featuredRequest.currentFlag}` : 'waiting for SYN'}</span>
+        <span className="flex items-center gap-2"><ServerIcon className="h-3.5 w-3.5 text-[#73e2ad]" /> Eligible targets avoid OFFLINE and DRAINING nodes</span>
+        <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-[#73e2ad]" /> health is simulated</span>
+      </div>
+    </section>
   );
 };

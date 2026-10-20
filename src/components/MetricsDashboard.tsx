@@ -1,269 +1,151 @@
 'use client';
 
 import React from 'react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, TooltipProps, XAxis, YAxis } from 'recharts';
+import { Activity, BarChart3, Clock3, Gauge, Layers3, Radio, ShieldAlert, Timer } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
-} from 'recharts';
-import { Activity, CheckCircle, AlertTriangle, Clock, Zap, BarChart3, TrendingUp } from 'lucide-react';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-slate-950/95 border border-cyan-500/40 p-3 rounded-xl shadow-2xl backdrop-blur-md font-mono text-xs text-white">
-        <p className="text-cyan-400 font-bold border-b border-slate-800 pb-1 mb-1.5">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <div key={`item-${index}`} className="flex items-center justify-between space-x-4 my-1">
-            <span style={{ color: entry.color }} className="font-semibold">{entry.name}:</span>
-            <span className="font-bold text-slate-100">{entry.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
+const tooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="border border-[#8ee8ff]/25 bg-[#071019]/95 p-3 font-mono text-[10px] shadow-2xl">
+      <div className="mb-2 text-[#8ee8ff]">{label}</div>
+      {payload.map((entry, index) => <div key={`${entry.name ?? 'value'}-${index}`} className="flex justify-between gap-6 py-0.5"><span style={{ color: entry.color ?? '#8ee8ff' }}>{entry.name ?? 'value'}</span><span className="text-[#e8f1f5]">{String(entry.value ?? '—')}</span></div>)}
+    </div>
+  );
 };
 
+const MetricTile = ({ icon: Icon, label, value, note, tone }: { icon: React.ElementType; label: string; value: string | number; note: string; tone: string }) => (
+  <div className="border border-[#b1ddea]/12 bg-[#0a151e] p-4">
+    <div className="flex items-start justify-between gap-3">
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#69848f]">{label}</span>
+      <Icon className="h-4 w-4" style={{ color: tone }} />
+    </div>
+    <div className="mt-3 font-mono text-2xl tracking-[-0.05em]" style={{ color: tone }}>{value}</div>
+    <div className="mt-1 text-[10px] text-[#68828d]">{note}</div>
+  </div>
+);
+
 export const MetricsDashboard: React.FC = () => {
-  const { servers, requestHistory, activeRequests, isContinuousTraffic, trafficRateRps, timeSeriesData } =
-    useSimulation();
-
-  const totalRequests = requestHistory.length + activeRequests.length;
-  const successfulRequests = requestHistory.filter((r) => r.status === 'COMPLETED').length;
-  const failedRequests = requestHistory.filter((r) => r.status === 'FAILED').length;
-  const activeConnectionsCount = servers.reduce((acc, curr) => acc + curr.activeConnections, 0);
-
-  const completedRequests = requestHistory.filter((r) => r.status === 'COMPLETED');
-  const avgResponseTime =
-    completedRequests.length > 0
-      ? Math.round(completedRequests.reduce((acc, r) => acc + r.responseTimeMs, 0) / completedRequests.length)
-      : 0;
-
-  // Distribution chart data
-  const distributionData = servers.map((s) => ({
-    name: s.name,
-    requests: s.totalRequestsHandled,
-    status: s.status,
-  }));
-
-  // Success vs Failure data
-  const statusData = [
-    { name: 'Successful (200 OK)', value: successfulRequests, color: '#10b981' },
-    { name: 'Failed (503 Service Unavailable)', value: failedRequests, color: '#ef4444' },
-  ].filter((d) => d.value > 0);
-
-  const BAR_COLORS = ['#06b6d4', '#10b981', '#8b5cf6'];
+  const { servers, requestHistory, timeSeriesData, isContinuousTraffic, trafficRateRps, tcpMetrics } = useSimulation();
+  const completed = requestHistory.filter((request) => request.status === 'COMPLETED');
+  const failed = requestHistory.filter((request) => request.status !== 'COMPLETED');
+  const averageLatency = completed.length ? Math.round(completed.reduce((sum, request) => sum + request.responseTimeMs, 0) / completed.length) : 0;
+  const distribution = servers.map((server) => ({ name: server.name, connections: server.totalConnectionsHandled, status: server.status }));
+  const outcomes = [
+    { name: 'closed', value: completed.length, color: '#73e2ad' },
+    { name: 'refused / reset', value: failed.length, color: '#ff7d79' },
+  ].filter((item) => item.value > 0);
 
   return (
-    <div className="space-y-6">
-      {/* Top Summary Metric Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-4 shadow-xl glass-panel-hover">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span className="font-mono uppercase font-semibold text-[11px]">Total Requests</span>
-            <div className="p-1.5 rounded-lg bg-cyan-950/60 text-cyan-400 border border-cyan-800/40">
-              <Activity className="w-4 h-4" />
-            </div>
+    <section id="metrics" className="space-y-4" aria-labelledby="telemetry-title">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#8ee8ff]"><Activity className="h-3.5 w-3.5" />
+            Telemetry / the aftermath
           </div>
-          <div className="text-2xl font-extrabold font-mono text-white mt-2">{totalRequests}</div>
-          <div className="text-[10px] text-slate-400 font-mono mt-1">Simulated Datagrams</div>
+          <h2 id="telemetry-title" className="mt-2 font-headline text-2xl tracking-[-0.05em] text-[#e8f1f5]">A connection leaves evidence behind.</h2>
         </div>
-
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-4 shadow-xl glass-panel-hover">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span className="font-mono uppercase font-semibold text-[11px]">Successful</span>
-            <div className="p-1.5 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-              <CheckCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold font-mono text-emerald-400 mt-2">{successfulRequests}</div>
-          <div className="text-[10px] text-emerald-400/80 font-mono mt-1">HTTP 200 OK</div>
-        </div>
-
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-4 shadow-xl glass-panel-hover">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span className="font-mono uppercase font-semibold text-[11px]">Failed</span>
-            <div className="p-1.5 rounded-lg bg-red-950/60 text-red-400 border border-red-800/40">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold font-mono text-red-400 mt-2">{failedRequests}</div>
-          <div className="text-[10px] text-red-400/80 font-mono mt-1">HTTP 503 Service Unavail</div>
-        </div>
-
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-4 shadow-xl glass-panel-hover">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span className="font-mono uppercase font-semibold text-[11px]">Active Conns</span>
-            <div className="p-1.5 rounded-lg bg-purple-950/60 text-purple-400 border border-purple-800/40">
-              <Zap className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold font-mono text-purple-300 mt-2">{activeConnectionsCount}</div>
-          <div className="text-[10px] text-purple-400/80 font-mono mt-1">Open Sockets</div>
-        </div>
-
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-4 shadow-xl glass-panel-hover">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span className="font-mono uppercase font-semibold text-[11px]">Avg Latency</span>
-            <div className="p-1.5 rounded-lg bg-amber-950/60 text-amber-400 border border-amber-800/40">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold font-mono text-amber-300 mt-2">{avgResponseTime} ms</div>
-          <div className="text-[10px] text-amber-400/80 font-mono mt-1">Round Trip Time</div>
-        </div>
-
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-4 shadow-xl glass-panel-hover">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span className="font-mono uppercase font-semibold text-[11px]">Current Rate</span>
-            <div className="p-1.5 rounded-lg bg-cyan-950/60 text-cyan-400 border border-cyan-800/40">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold font-mono text-white mt-2">
-            {isContinuousTraffic ? `${trafficRateRps} rps` : '0 rps'}
-          </div>
-          <div className="text-[10px] text-cyan-400/80 font-mono mt-1">Throughput Rate</div>
-        </div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.13em] text-[#6b8792]">last {timeSeriesData.length} seconds sampled</div>
       </div>
 
-      {/* Analytics Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1: Request Distribution */}
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
-            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4 text-cyan-400" />
-              <span>1. Request Distribution Per Server Node</span>
-            </h3>
+      <div className="grid grid-cols-2 gap-px border border-[#b1ddea]/12 bg-[#b1ddea]/12 md:grid-cols-4 xl:grid-cols-8">
+        <MetricTile icon={Layers3} label="total flows" value={tcpMetrics.totalConnections} note="opened in this run" tone="#8ee8ff" />
+        <MetricTile icon={Radio} label="active sockets" value={tcpMetrics.activeConnections} note="on backend legs" tone="#73e2ad" />
+        <MetricTile icon={ShieldAlert} label="SYN backlog" value={tcpMetrics.synBacklog} note="handshakes in flight" tone="#f5c76f" />
+        <MetricTile icon={Timer} label="TIME-WAIT" value={tcpMetrics.timeWaitConnections} note="delayed segment guard" tone="#f5c76f" />
+        <MetricTile icon={Clock3} label="handshake" value={`${tcpMetrics.averageHandshakeMs}ms`} note="SYN to ACK average" tone="#8ee8ff" />
+        <MetricTile icon={Gauge} label="latency" value={`${averageLatency}ms`} note="synthetic service delay" tone="#73e2ad" />
+        <MetricTile icon={BarChart3} label="observed" value={`${tcpMetrics.observedRps}/s`} note="recent closed flows" tone="#8ee8ff" />
+        <MetricTile icon={Activity} label="configured" value={isContinuousTraffic ? `${trafficRateRps}/s` : 'idle'} note="continuous open rate" tone="#b4c8cf" />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="lab-panel min-h-[300px] p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">Who is carrying the load?</h3><p className="mt-1 text-[10px] text-[#6e8994]">Accepted TCP connections per target</p></div>
+            <BarChart3 className="h-4 w-4 text-[#8ee8ff]" />
           </div>
-          <div className="h-64 w-full">
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={distributionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.6} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="requests" radius={[8, 8, 0, 0]}>
-                  {distributionData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.status === 'OFFLINE' ? '#ef4444' : BAR_COLORS[index % BAR_COLORS.length]}
-                    />
-                  ))}
+              <BarChart data={distribution} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <CartesianGrid stroke="#1a3440" strokeDasharray="2 4" vertical={false} />
+                <XAxis dataKey="name" stroke="#78929d" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#78929d" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip content={tooltip} />
+                <Bar dataKey="connections" radius={[2, 2, 0, 0]}>
+                  {distribution.map((entry) => <Cell key={entry.name} fill={entry.status === 'OFFLINE' ? '#ff7d79' : entry.status === 'DRAINING' ? '#f5c76f' : '#8ee8ff'} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Chart 2: Server CPU Load Over Time */}
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
-            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center space-x-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span>2. Real-Time Server CPU Load Curves (%)</span>
-            </h3>
+        <div className="lab-panel min-h-[300px] p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">Pressure through the handshake</h3><p className="mt-1 text-[10px] text-[#6e8994]">Active sockets, SYN backlog, and TIME-WAIT</p></div>
+            <Radio className="h-4 w-4 text-[#73e2ad]" />
           </div>
-          <div className="h-64 w-full">
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeSeriesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.6} />
-                <XAxis dataKey="timestamp" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'Fira Code' }} />
-                <Line type="monotone" dataKey="Server 1 Load" stroke="#06b6d4" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="Server 2 Load" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="Server 3 Load" stroke="#8b5cf6" strokeWidth={2.5} dot={false} />
+              <LineChart data={timeSeriesData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <CartesianGrid stroke="#1a3440" strokeDasharray="2 4" vertical={false} />
+                <XAxis dataKey="timestamp" stroke="#78929d" fontSize={9} tickLine={false} axisLine={false} />
+                <YAxis stroke="#78929d" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip content={tooltip} />
+                <Legend wrapperStyle={{ fontSize: 10, color: '#78929d' }} />
+                <Line type="monotone" dataKey="activeConnections" name="active" stroke="#73e2ad" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="synBacklog" name="SYN backlog" stroke="#8ee8ff" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="timeWaitConnections" name="TIME-WAIT" stroke="#f5c76f" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Chart 3: Response Time Latency */}
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
-            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-amber-400" />
-              <span>3. Cluster Response Latency Timeline (ms)</span>
-            </h3>
+        <div className="lab-panel min-h-[300px] p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">Target CPU curves</h3><p className="mt-1 text-[10px] text-[#6e8994]">Synthetic pressure follows active connection count</p></div>
+            <Gauge className="h-4 w-4 text-[#f5c76f]" />
           </div>
-          <div className="h-64 w-full">
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timeSeriesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="latencyGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.6} />
-                <XAxis dataKey="timestamp" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="avgResponseTime"
-                  stroke="#f59e0b"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="url(#latencyGradient)"
-                />
-              </AreaChart>
+              <LineChart data={timeSeriesData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <CartesianGrid stroke="#1a3440" strokeDasharray="2 4" vertical={false} />
+                <XAxis dataKey="timestamp" stroke="#78929d" fontSize={9} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} stroke="#78929d" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip content={tooltip} />
+                <Legend wrapperStyle={{ fontSize: 10, color: '#78929d' }} />
+                {servers.map((server, index) => <Line key={server.id} type="monotone" dataKey={`${server.name} CPU`} name={server.name} stroke={['#8ee8ff', '#73e2ad', '#f5c76f'][index]} strokeWidth={2} dot={false} />)}
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Chart 4: Request Outcome */}
-        <div className="glass-panel border border-slate-800/80 rounded-2xl p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
-            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-purple-400" />
-              <span>4. Request Outcome Ratio (Success vs Failure)</span>
-            </h3>
+        <div className="lab-panel min-h-[300px] p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between border-b border-[#b1ddea]/12 pb-3">
+            <div><h3 className="font-headline text-base text-[#e8f1f5]">How flows ended</h3><p className="mt-1 text-[10px] text-[#6e8994]">A transport outcome, not an HTTP status code</p></div>
+            <ShieldAlert className="h-4 w-4 text-[#ff7d79]" />
           </div>
-          <div className="h-64 w-full flex items-center justify-center">
-            {statusData.length > 0 ? (
+          <div className="flex h-56 items-center justify-center">
+            {outcomes.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
+                  <Pie data={outcomes} dataKey="value" nameKey="name" innerRadius={55} outerRadius={82} paddingAngle={4}>
+                    {outcomes.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'Fira Code' }} />
+                  <Tooltip content={tooltip} />
+                  <Legend wrapperStyle={{ fontSize: 10, color: '#78929d' }} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="text-slate-500 font-mono text-xs">No traffic generated yet</div>
-            )}
+            ) : <div className="text-center font-mono text-xs text-[#66818d]">No closed flows yet.<br /><span className="text-[#8ee8ff]">Open a TCP flow to populate the trace.</span></div>}
           </div>
         </div>
       </div>
-    </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-l-2 border-[#8ee8ff]/50 bg-[#091722] px-4 py-3 text-[10px] leading-5 text-[#78929d]">
+        <span><strong className="text-[#dbe9ee]">Reading the chart:</strong> active sockets count concurrent connections, not packets per second.</span>
+        <span><strong className="text-[#dbe9ee]">TIME-WAIT:</strong> a protective TCP state after graceful close.</span>
+      </div>
+    </section>
   );
 };
